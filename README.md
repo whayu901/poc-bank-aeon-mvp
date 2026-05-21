@@ -4,17 +4,26 @@ This project is a small React Native banking app built for the AEON Bank Senior 
 
 I treated this as a banking-grade MVP rather than a feature-heavy prototype. The goal was to keep the app easy to review, easy to extend, and clear enough that another developer could continue from it without needing much explanation.
 
-## Why This Approach
+## Screenshots
 
-The assessment asks for a focused transaction list and detail flow. For that kind of scope, I avoided adding heavy infrastructure that would make the project look bigger than the problem. At the same time, I kept the important seams in place:
-
-- Transaction data is accessed through a repository interface.
-- Zustand coordinates screen data, loading, and error state.
-- UI state like search, filters, snackbar visibility, and language selection stays close to where it is used.
-- Formatting, sorting, filtering, and receipt text generation live outside the screen components.
-- Native APIs such as Share and Clipboard are wrapped behind small services.
-
-That gives the project a clean structure without turning a take-home assessment into a framework exercise.
+<table>
+  <tr>
+    <td align="center"><strong>Transactions - English</strong></td>
+    <td align="center"><strong>Transactions - Bahasa Malaysia</strong></td>
+  </tr>
+  <tr>
+    <td><img src="./assets/screenshots/transactions-en.jpg" width="220" alt="Transactions list in English" /></td>
+    <td><img src="./assets/screenshots/transactions-bm.jpg" width="220" alt="Transactions list in Bahasa Malaysia" /></td>
+  </tr>
+  <tr>
+    <td align="center"><strong>Transaction Detail</strong></td>
+    <td align="center"><strong>Native Share Flow</strong></td>
+  </tr>
+  <tr>
+    <td><img src="./assets/screenshots/transaction-detail.jpg" width="220" alt="Transaction detail receipt screen" /></td>
+    <td><img src="./assets/screenshots/share-sheet.jpg" width="220" alt="Native share sheet for transaction receipt" /></td>
+  </tr>
+</table>
 
 ## MVP Scope
 
@@ -57,6 +66,18 @@ The app does not try to solve authentication, real API integration, PDF generati
 - EN / BM language toggle.
 - System-aware light and dark mode.
 - Accessibility labels and stable `testID` values.
+
+## Why This Approach
+
+The assessment asks for a focused transaction list and detail flow. For that kind of scope, I avoided adding heavy infrastructure that would make the project look bigger than the problem. At the same time, I kept the important seams in place:
+
+- Transaction data is accessed through a repository interface.
+- Zustand coordinates screen data, loading, and error state.
+- UI state like search, filters, snackbar visibility, and language selection stays close to where it is used.
+- Formatting, sorting, filtering, and receipt text generation live outside the screen components.
+- Native APIs such as Share and Clipboard are wrapped behind small services.
+
+That gives the project a clean structure without turning a take-home assessment into a framework exercise.
 
 ## Tech Stack
 
