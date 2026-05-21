@@ -17,7 +17,8 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.wahyud4560.aeonbankassessment"
     },
     "web": {
       "output": "single",
@@ -37,6 +38,11 @@
     ],
     "experiments": {
       "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "ceb55a0f-dcbe-4223-be92-4ec7a7ef8810"
+      }
     }
   }
 }
