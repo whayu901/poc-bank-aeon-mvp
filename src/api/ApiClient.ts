@@ -1,14 +1,23 @@
-import { AppError, createAppError, ErrorType, mapStatusToErrorType } from '../models/AppError';
+import {
+  AppError,
+  createAppError,
+  ErrorType,
+  mapStatusToErrorType,
+} from "../models/AppError";
 
 /**
  * Request interceptor function type
  */
-type RequestInterceptor = (config: RequestConfig) => Promise<RequestConfig> | RequestConfig;
+type RequestInterceptor = (
+  config: RequestConfig,
+) => Promise<RequestConfig> | RequestConfig;
 
 /**
  * Response interceptor function type
  */
-type ResponseInterceptor<T = any> = (response: ApiResponse<T>) => Promise<ApiResponse<T>> | ApiResponse<T>;
+type ResponseInterceptor<T = any> = (
+  response: ApiResponse<T>,
+) => Promise<ApiResponse<T>> | ApiResponse<T>;
 
 /**
  * Error interceptor function type
@@ -18,7 +27,7 @@ type ErrorInterceptor = (error: AppError) => Promise<AppError> | AppError;
 /**
  * Configuration for API requests
  */
-export interface RequestConfig extends Omit<RequestInit, 'signal'> {
+export interface RequestConfig extends Omit<RequestInit, "signal"> {
   url?: string;
   params?: Record<string, string | number | boolean>;
   timeout?: number; // milliseconds
@@ -47,7 +56,7 @@ export interface ApiClientConfig {
 
 /**
  * Certificate pinning configuration
- * NOTE: Requires a development build - does not work in Expo Go
+ * NOTE: Requires a development build - does not work in Expo Gow3
  */
 export interface CertificatePinningConfig {
   enabled: boolean;
@@ -78,8 +87,8 @@ export class ApiClient {
     this.config = {
       timeout: 30000, // 30 seconds default
       headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
+        "Content-Type": "application/json",
+        Accept: "application/json",
       },
       ...config,
     };
@@ -94,7 +103,9 @@ export class ApiClient {
   public static getInstance(config?: ApiClientConfig): ApiClient {
     if (!ApiClient.instance) {
       if (!config) {
-        throw new Error('ApiClient must be initialized with config on first use');
+        throw new Error(
+          "ApiClient must be initialized with config on first use",
+        );
       }
       ApiClient.instance = new ApiClient(config);
     }
@@ -124,10 +135,12 @@ export class ApiClient {
   private initializeCertificatePinning(): void {
     if (this.config.certificatePinning?.enabled) {
       // In a real implementation, this would configure the native pinning module
-      console.log('[ApiClient] Certificate pinning configured (requires dev build)');
+      console.log(
+        "[ApiClient] Certificate pinning configured (requires dev build)",
+      );
 
       // Document the pins for reference
-      this.config.certificatePinning.pins.forEach(pin => {
+      this.config.certificatePinning.pins.forEach((pin) => {
         console.log(`[ApiClient] Pin configured for ${pin.hostname}`);
       });
 
@@ -176,7 +189,10 @@ export class ApiClient {
   /**
    * Build full URL with query parameters
    */
-  private buildURL(endpoint: string, params?: Record<string, string | number | boolean>): string {
+  private buildURL(
+    endpoint: string,
+    params?: Record<string, string | number | boolean>,
+  ): string {
     const url = new URL(endpoint, this.config.baseURL);
 
     if (params) {
@@ -191,7 +207,9 @@ export class ApiClient {
   /**
    * Apply request interceptors
    */
-  private async applyRequestInterceptors(config: RequestConfig): Promise<RequestConfig> {
+  private async applyRequestInterceptors(
+    config: RequestConfig,
+  ): Promise<RequestConfig> {
     let modifiedConfig = { ...config };
 
     for (const interceptor of this.requestInterceptors) {
@@ -204,7 +222,9 @@ export class ApiClient {
   /**
    * Apply response interceptors
    */
-  private async applyResponseInterceptors<T>(response: ApiResponse<T>): Promise<ApiResponse<T>> {
+  private async applyResponseInterceptors<T>(
+    response: ApiResponse<T>,
+  ): Promise<ApiResponse<T>> {
     let modifiedResponse = response;
 
     for (const interceptor of this.responseInterceptors) {
@@ -230,7 +250,10 @@ export class ApiClient {
   /**
    * Main request method with timeout support
    */
-  public async request<T = any>(endpoint: string, config: RequestConfig = {}): Promise<ApiResponse<T>> {
+  public async request<T = any>(
+    endpoint: string,
+    config: RequestConfig = {},
+  ): Promise<ApiResponse<T>> {
     // Apply request interceptors
     const interceptedConfig = await this.applyRequestInterceptors(config);
 
@@ -250,15 +273,15 @@ export class ApiClient {
 
     // Add auth header if token exists and not skipped
     if (this.accessToken && !interceptedConfig.skipAuth) {
-      headers.set('Authorization', `Bearer ${this.accessToken}`);
+      headers.set("Authorization", `Bearer ${this.accessToken}`);
     }
 
     // Never log sensitive headers
     const logSafeHeaders = Object.fromEntries(
       Array.from(headers.entries()).map(([key, value]) => [
         key,
-        key.toLowerCase() === 'authorization' ? '[REDACTED]' : value,
-      ])
+        key.toLowerCase() === "authorization" ? "[REDACTED]" : value,
+      ]),
     );
 
     try {
@@ -271,10 +294,10 @@ export class ApiClient {
       clearTimeout(timeoutId);
 
       // Parse response
-      const contentType = response.headers.get('content-type');
+      const contentType = response.headers.get("content-type");
       let data: T;
 
-      if (contentType?.includes('application/json')) {
+      if (contentType?.includes("application/json")) {
         data = await response.json();
       } else {
         data = (await response.text()) as unknown as T;
@@ -288,7 +311,7 @@ export class ApiClient {
           `HTTP ${response.status}: ${response.statusText}`,
           response.status,
           { response: data },
-          response.headers.get('x-request-id') || undefined
+          response.headers.get("x-request-id") || undefined,
         );
 
         throw await this.applyErrorInterceptors(error);
@@ -304,27 +327,26 @@ export class ApiClient {
 
       // Apply response interceptors
       return await this.applyResponseInterceptors(apiResponse);
-
     } catch (error) {
       clearTimeout(timeoutId);
 
       // Handle different error types
-      if ((error as Error).name === 'AbortError') {
+      if ((error as Error).name === "AbortError") {
         const timeoutError = createAppError(
           ErrorType.TIMEOUT,
           `Request timeout after ${timeout}ms`,
           undefined,
-          error
+          error,
         );
         throw await this.applyErrorInterceptors(timeoutError);
       }
 
-      if (error instanceof TypeError && error.message.includes('fetch')) {
+      if (error instanceof TypeError && error.message.includes("fetch")) {
         const networkError = createAppError(
           ErrorType.NETWORK,
-          'Network request failed. Please check your connection.',
+          "Network request failed. Please check your connection.",
           undefined,
-          error
+          error,
         );
         throw await this.applyErrorInterceptors(networkError);
       }
@@ -337,9 +359,9 @@ export class ApiClient {
       // Unknown error
       const unknownError = createAppError(
         ErrorType.UNKNOWN,
-        'An unexpected error occurred',
+        "An unexpected error occurred",
         undefined,
-        error
+        error,
       );
       throw await this.applyErrorInterceptors(unknownError);
     }
@@ -348,35 +370,53 @@ export class ApiClient {
   /**
    * Convenience methods for common HTTP verbs
    */
-  public async get<T = any>(endpoint: string, config?: RequestConfig): Promise<ApiResponse<T>> {
-    return this.request<T>(endpoint, { ...config, method: 'GET' });
+  public async get<T = any>(
+    endpoint: string,
+    config?: RequestConfig,
+  ): Promise<ApiResponse<T>> {
+    return this.request<T>(endpoint, { ...config, method: "GET" });
   }
 
-  public async post<T = any>(endpoint: string, data?: any, config?: RequestConfig): Promise<ApiResponse<T>> {
+  public async post<T = any>(
+    endpoint: string,
+    data?: any,
+    config?: RequestConfig,
+  ): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, {
       ...config,
-      method: 'POST',
+      method: "POST",
       body: data ? JSON.stringify(data) : undefined,
     });
   }
 
-  public async put<T = any>(endpoint: string, data?: any, config?: RequestConfig): Promise<ApiResponse<T>> {
+  public async put<T = any>(
+    endpoint: string,
+    data?: any,
+    config?: RequestConfig,
+  ): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, {
       ...config,
-      method: 'PUT',
+      method: "PUT",
       body: data ? JSON.stringify(data) : undefined,
     });
   }
 
-  public async patch<T = any>(endpoint: string, data?: any, config?: RequestConfig): Promise<ApiResponse<T>> {
+  public async patch<T = any>(
+    endpoint: string,
+    data?: any,
+    config?: RequestConfig,
+  ): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, {
       ...config,
-      method: 'PATCH',
+      method: "PATCH",
       body: data ? JSON.stringify(data) : undefined,
     });
   }
 
-  public async delete<T = any>(endpoint: string, config?: RequestConfig): Promise<ApiResponse<T>> {
-    return this.request<T>(endpoint, { ...config, method: 'DELETE' });
+  public async delete<T = any>(
+    endpoint: string,
+    config?: RequestConfig,
+  ): Promise<ApiResponse<T>> {
+    return this.request<T>(endpoint, { ...config, method: "DELETE" });
   }
 }

@@ -1,18 +1,21 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Alert } from 'react-native';
+import { useCallback, useEffect, useState } from "react";
+import { Alert } from "react-native";
 
-import { useTranslation } from '@/i18n';
+import { useTranslation } from "@/i18n";
 import {
   nativeClipboardService,
   type ClipboardService,
-} from '@/services/ClipboardService';
-import { nativeShareService, type ShareService } from '@/services/ShareService';
-import { useTransactionStore } from '@/store/transactionStore';
-import type { TransactionDetailScreenProps } from '@/types/navigation';
-import { buildTransactionReceipt, getTransactionType } from '@/utils/transaction';
+} from "@/services/ClipboardService";
+import { nativeShareService, type ShareService } from "@/services/ShareService";
+import { useTransactionStore } from "@/store/transactionStore";
+import type { TransactionDetailScreenProps } from "@/types/navigation";
+import {
+  buildTransactionReceipt,
+  getTransactionType,
+} from "@/utils/transaction";
 
 interface UseTransactionDetailViewModelParams {
-  route: TransactionDetailScreenProps['route'];
+  route: TransactionDetailScreenProps["route"];
   clipboardService?: ClipboardService;
   shareService?: ShareService;
 }
@@ -27,7 +30,9 @@ export function useTransactionDetailViewModel({
   const transaction = useTransactionStore((state) =>
     state.getTransactionByRefId(route.params.refId),
   );
-  const transactionType = transaction ? getTransactionType(transaction.amount) : undefined;
+  const transactionType = transaction
+    ? getTransactionType(transaction.amount)
+    : undefined;
 
   useEffect(() => {
     if (!isCopySnackbarVisible) {
