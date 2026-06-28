@@ -23,7 +23,7 @@ import { BiometricService } from '@/services/BiometricService';
  * Simple form for demonstration - production would have more validation
  */
 export const LoginScreen: React.FC = () => {
-  const { colors, spacing, typography, borderRadius } = useAppTheme();
+  const { colors, spacing, typography } = useAppTheme();
   const authStore = useAuthStore();
 
   // Form state
@@ -109,19 +109,19 @@ export const LoginScreen: React.FC = () => {
         >
           {/* Header */}
           <View style={styles.header}>
-            <Text style={[styles.title, { color: colors.text }, typography.largeTitle]}>
+            <Text style={[styles.title, { color: colors.textPrimary }, typography.title]}>
               Aeon Bank
             </Text>
-            <Text style={[styles.subtitle, { color: colors.secondaryText }, typography.body]}>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }, typography.body]}>
               Welcome back
             </Text>
           </View>
 
           {/* Form */}
-          <View style={[styles.form, { padding: spacing.large }]}>
+          <View style={[styles.form, { padding: spacing.lg }]}>
             {/* Username Input */}
             <View style={styles.inputContainer}>
-              <Text style={[styles.label, { color: colors.text }, typography.caption]}>
+              <Text style={[styles.label, { color: colors.textPrimary }, typography.caption]}>
                 Username
               </Text>
               <TextInput
@@ -129,16 +129,16 @@ export const LoginScreen: React.FC = () => {
                   styles.input,
                   {
                     backgroundColor: colors.surface,
-                    color: colors.text,
+                    color: colors.textPrimary,
                     borderColor: colors.border,
-                    borderRadius: borderRadius.medium,
-                    paddingHorizontal: spacing.medium,
+                    borderRadius: 8,
+                    paddingHorizontal: spacing.md,
                   },
                 ]}
                 value={username}
                 onChangeText={setUsername}
                 placeholder="Enter username"
-                placeholderTextColor={colors.secondaryText}
+                placeholderTextColor={colors.textSecondary}
                 autoCapitalize="none"
                 autoCorrect={false}
                 editable={!isLoading}
@@ -148,7 +148,7 @@ export const LoginScreen: React.FC = () => {
 
             {/* Password Input */}
             <View style={styles.inputContainer}>
-              <Text style={[styles.label, { color: colors.text }, typography.caption]}>
+              <Text style={[styles.label, { color: colors.textPrimary }, typography.caption]}>
                 Password
               </Text>
               <View style={styles.passwordContainer}>
@@ -157,16 +157,16 @@ export const LoginScreen: React.FC = () => {
                     styles.passwordInput,
                     {
                       backgroundColor: colors.surface,
-                      color: colors.text,
+                      color: colors.textPrimary,
                       borderColor: colors.border,
-                      borderRadius: borderRadius.medium,
-                      paddingHorizontal: spacing.medium,
+                      borderRadius: 8,
+                      paddingHorizontal: spacing.md,
                     },
                   ]}
                   value={password}
                   onChangeText={setPassword}
                   placeholder="Enter password"
-                  placeholderTextColor={colors.secondaryText}
+                  placeholderTextColor={colors.textSecondary}
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -174,7 +174,7 @@ export const LoginScreen: React.FC = () => {
                   testID="password-input"
                 />
                 <TouchableOpacity
-                  style={[styles.showPasswordButton, { padding: spacing.small }]}
+                  style={[styles.showPasswordButton, { padding: spacing.sm }]}
                   onPress={() => setShowPassword(!showPassword)}
                   disabled={isLoading}
                 >
@@ -186,8 +186,8 @@ export const LoginScreen: React.FC = () => {
             </View>
 
             {/* Biometric Option */}
-            <View style={[styles.biometricContainer, { marginVertical: spacing.medium }]}>
-              <Text style={[styles.biometricLabel, { color: colors.text }, typography.body]}>
+            <View style={[styles.biometricContainer, { marginVertical: spacing.md }]}>
+              <Text style={[styles.biometricLabel, { color: colors.textPrimary }, typography.body]}>
                 Enable biometric login
               </Text>
               <Switch
@@ -204,10 +204,10 @@ export const LoginScreen: React.FC = () => {
               style={[
                 styles.loginButton,
                 {
-                  backgroundColor: isLoading ? colors.disabled : colors.primary,
-                  borderRadius: borderRadius.medium,
-                  paddingVertical: spacing.medium,
-                  marginTop: spacing.large,
+                  backgroundColor: isLoading ? colors.textMuted : colors.primary,
+                  borderRadius: 8,
+                  paddingVertical: spacing.md,
+                  marginTop: spacing.lg,
                 },
               ]}
               onPress={handleLogin}
@@ -217,18 +217,18 @@ export const LoginScreen: React.FC = () => {
               {isLoading ? (
                 <ActivityIndicator color={colors.surface} />
               ) : (
-                <Text style={[styles.loginButtonText, { color: colors.surface }, typography.headline]}>
+                <Text style={[styles.loginButtonText, { color: colors.surface }, typography.subtitle]}>
                   Login
                 </Text>
               )}
             </TouchableOpacity>
 
             {/* Demo Note */}
-            <View style={[styles.demoNote, { marginTop: spacing.large }]}>
-              <Text style={[styles.demoText, { color: colors.secondaryText }, typography.caption]}>
+            <View style={[styles.demoNote, { marginTop: spacing.lg }]}>
+              <Text style={[styles.demoText, { color: colors.textSecondary }, typography.caption]}>
                 Demo Mode: Use any username/password
               </Text>
-              <Text style={[styles.demoText, { color: colors.secondaryText }, typography.caption]}>
+              <Text style={[styles.demoText, { color: colors.textSecondary }, typography.caption]}>
                 Tokens expire in 30s to demonstrate refresh
               </Text>
             </View>

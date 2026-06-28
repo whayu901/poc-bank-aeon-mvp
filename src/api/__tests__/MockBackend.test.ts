@@ -79,7 +79,7 @@ describe('MockBackend', () => {
 
       expect(response.status).toBe(200);
       expect(data.data).toBeDefined();
-      expect(data.data.id).toBe('TXN001');
+      expect(data.data.refId).toBe('TXN001');
     });
 
     it('should return 404 for unknown transaction', async () => {

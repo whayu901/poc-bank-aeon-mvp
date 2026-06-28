@@ -76,8 +76,8 @@ describe('ApiTransactionRepository', () => {
       const transaction = await repository.getTransactionById('TXN001');
 
       expect(transaction).toBeDefined();
-      expect(transaction?.id).toBe('TXN001');
-      expect(transaction?.description).toBe('Salary Payment - Tech Corp Sdn Bhd');
+      expect(transaction?.refId).toBe('TXN001');
+      expect(transaction?.transferName).toBe('Salary Payment');
     });
 
     it('should return null for non-existent transaction', async () => {

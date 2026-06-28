@@ -14,51 +14,43 @@ export class MockBackend {
   private validTokens = new Set<string>();
   private tokenExpiryMap = new Map<string, number>();
 
-  // Mock data
+  // Mock data matching the Transaction type
   private transactions: Transaction[] = [
     {
-      id: 'TXN001',
+      refId: 'TXN001',
       amount: 2500.0,
+      transferDate: '2024-01-15T09:30:00.000Z',
+      recipientName: 'Tech Corp Sdn Bhd',
+      transferName: 'Salary Payment',
       type: 'incoming',
-      description: 'Salary Payment - Tech Corp Sdn Bhd',
-      date: '2024-01-15T09:30:00.000Z',
-      category: 'salary',
-      status: 'completed',
-      merchantName: 'Tech Corp Sdn Bhd',
-      referenceNumber: 'REF2024011501',
+      id: 'TXN001',
     },
     {
+      refId: 'TXN002',
+      amount: -150.0, // Negative for outgoing
+      transferDate: '2024-01-14T20:15:00.000Z',
+      recipientName: 'Grab',
+      transferName: 'Airport to KLCC',
+      type: 'outgoing',
       id: 'TXN002',
-      amount: 150.0,
-      type: 'outgoing',
-      description: 'Grab - Airport to KLCC',
-      date: '2024-01-14T20:15:00.000Z',
-      category: 'transport',
-      status: 'completed',
-      merchantName: 'Grab',
-      referenceNumber: 'GRB2024011402',
     },
     {
+      refId: 'TXN003',
+      amount: -89.9, // Negative for outgoing
+      transferDate: '2024-01-10T00:00:00.000Z',
+      recipientName: 'Netflix',
+      transferName: 'Monthly Subscription',
+      type: 'outgoing',
       id: 'TXN003',
-      amount: 89.9,
-      type: 'outgoing',
-      description: 'Netflix Monthly Subscription',
-      date: '2024-01-10T00:00:00.000Z',
-      category: 'entertainment',
-      status: 'completed',
-      merchantName: 'Netflix',
-      referenceNumber: 'NTF2024011001',
     },
     {
-      id: 'TXN004',
+      refId: 'TXN004',
       amount: 450.5,
+      transferDate: '2024-01-08T14:20:00.000Z',
+      recipientName: 'Creative Studio',
+      transferName: 'Freelance Project - Mobile App UI Design',
       type: 'incoming',
-      description: 'Freelance Project - Mobile App UI Design',
-      date: '2024-01-08T14:20:00.000Z',
-      category: 'freelance',
-      status: 'completed',
-      merchantName: 'Creative Studio',
-      referenceNumber: 'FRL2024010801',
+      id: 'TXN004',
     },
   ];
 
@@ -246,7 +238,7 @@ export class MockBackend {
       });
     }
 
-    const transaction = this.transactions.find((t) => t.id === id);
+    const transaction = this.transactions.find((t) => t.refId === id || t.id === id);
 
     if (!transaction) {
       return new Response(JSON.stringify({ error: 'Transaction not found' }), {

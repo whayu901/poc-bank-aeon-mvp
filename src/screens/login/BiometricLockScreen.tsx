@@ -18,7 +18,7 @@ import { BiometricService, BiometricType } from '@/services/BiometricService';
  * Shown when app is locked and requires biometric authentication
  */
 export const BiometricLockScreen: React.FC = () => {
-  const { colors, spacing, typography, borderRadius } = useAppTheme();
+  const { colors, spacing, typography } = useAppTheme();
   const user = useAuthUser();
   const authService = AuthService.getInstance();
   const biometricService = BiometricService.getInstance();
@@ -130,19 +130,19 @@ export const BiometricLockScreen: React.FC = () => {
         {/* Header */}
         <View style={styles.header}>
           <Text style={[styles.icon]}>{getBiometricIcon()}</Text>
-          <Text style={[styles.title, { color: colors.text }, typography.largeTitle]}>
+          <Text style={[styles.title, { color: colors.textPrimary }, typography.title]}>
             Welcome back
           </Text>
           {user && (
-            <Text style={[styles.username, { color: colors.secondaryText }, typography.body]}>
+            <Text style={[styles.username, { color: colors.textSecondary }, typography.body]}>
               {user.username}
             </Text>
           )}
         </View>
 
         {/* Biometric Prompt */}
-        <View style={[styles.promptContainer, { padding: spacing.large }]}>
-          <Text style={[styles.promptText, { color: colors.text }, typography.headline]}>
+        <View style={[styles.promptContainer, { padding: spacing.lg }]}>
+          <Text style={[styles.promptText, { color: colors.textPrimary }, typography.subtitle]}>
             {biometricType === BiometricType.FACE_ID
               ? 'Look at your device to unlock'
               : biometricType === BiometricType.FINGERPRINT
@@ -151,22 +151,22 @@ export const BiometricLockScreen: React.FC = () => {
           </Text>
 
           {remainingAttempts < 3 && remainingAttempts > 0 && (
-            <Text style={[styles.attemptsText, { color: colors.warning }, typography.caption]}>
+            <Text style={[styles.attemptsText, { color: colors.danger }, typography.caption]}>
               {remainingAttempts} attempts remaining
             </Text>
           )}
         </View>
 
         {/* Action Buttons */}
-        <View style={[styles.actions, { padding: spacing.large }]}>
+        <View style={[styles.actions, { padding: spacing.lg }]}>
           <TouchableOpacity
             style={[
               styles.button,
               styles.primaryButton,
               {
-                backgroundColor: isAuthenticating ? colors.disabled : colors.primary,
-                borderRadius: borderRadius.medium,
-                paddingVertical: spacing.medium,
+                backgroundColor: isAuthenticating ? colors.textMuted : colors.primary,
+                borderRadius: 8,
+                paddingVertical: spacing.md,
               },
             ]}
             onPress={handleBiometricAuth}
@@ -175,7 +175,7 @@ export const BiometricLockScreen: React.FC = () => {
             {isAuthenticating ? (
               <ActivityIndicator color={colors.surface} />
             ) : (
-              <Text style={[styles.buttonText, { color: colors.surface }, typography.headline]}>
+              <Text style={[styles.buttonText, { color: colors.surface }, typography.subtitle]}>
                 Unlock with {biometricService.getBiometricTypeName(biometricType)}
               </Text>
             )}
@@ -188,14 +188,14 @@ export const BiometricLockScreen: React.FC = () => {
               {
                 borderColor: colors.border,
                 borderWidth: 1,
-                borderRadius: borderRadius.medium,
-                paddingVertical: spacing.medium,
+                borderRadius: 8,
+                paddingVertical: spacing.md,
               },
             ]}
             onPress={handleLogout}
             disabled={isAuthenticating}
           >
-            <Text style={[styles.buttonText, { color: colors.text }, typography.headline]}>
+            <Text style={[styles.buttonText, { color: colors.textPrimary }, typography.subtitle]}>
               Logout
             </Text>
           </TouchableOpacity>
@@ -203,7 +203,7 @@ export const BiometricLockScreen: React.FC = () => {
 
         {/* Info Text */}
         <View style={styles.infoContainer}>
-          <Text style={[styles.infoText, { color: colors.secondaryText }, typography.caption]}>
+          <Text style={[styles.infoText, { color: colors.textSecondary }, typography.caption]}>
             Your session is locked for security. Please authenticate to continue.
           </Text>
         </View>

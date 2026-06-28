@@ -4,6 +4,8 @@ export interface Transaction {
   recipientName: string;
   transferName: string;
   amount: number;
+  id?: any;
+  type?: any;
 }
 
-export type TransactionType = 'incoming' | 'outgoing';
+export type TransactionType = "incoming" | "outgoing";
