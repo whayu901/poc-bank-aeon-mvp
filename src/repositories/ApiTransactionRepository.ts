@@ -1,8 +1,8 @@
-import { Transaction } from '../models/Transaction';
+import { Transaction } from '@/types/transaction';
 import { TransactionRepository } from './TransactionRepository';
-import { ApiClient } from '../api/ApiClient';
-import { MockBackend } from '../api/MockBackend';
-import { AppError, isAppError } from '../models/AppError';
+import { ApiClient } from '@/api/ApiClient';
+import { MockBackend } from '@/api/MockBackend';
+import { AppError, isAppError } from '@/models/AppError';
 
 /**
  * Production-ready transaction repository using the API client

@@ -1,15 +1,15 @@
 import { AuthService } from '../AuthService';
 import { SecureStorageService } from '../SecureStorageService';
 import { BiometricService } from '../BiometricService';
-import { ApiClient } from '../../api/ApiClient';
-import { MockBackend } from '../../api/MockBackend';
-import { useAuthStore } from '../../store/authStore';
+import { ApiClient } from '@/api/ApiClient';
+import { MockBackend } from '@/api/MockBackend';
+import { useAuthStore } from '@/store/authStore';
 
 // Mock dependencies
 jest.mock('../SecureStorageService');
 jest.mock('../BiometricService');
-jest.mock('../../api/ApiClient');
-jest.mock('../../api/MockBackend');
+jest.mock('@/api/ApiClient');
+jest.mock('@/api/MockBackend');
 
 describe('AuthService', () => {
   let authService: AuthService;

@@ -8,17 +8,17 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTheme } from '../../hooks/useTheme';
-import { useAuthStore, useAuthUser } from '../../store/authStore';
-import { AuthService } from '../../services/AuthService';
-import { BiometricService, BiometricType } from '../../services/BiometricService';
+import { useAppTheme } from '@/theme/useAppTheme';
+import { useAuthStore, useAuthUser } from '@/store/authStore';
+import { AuthService } from '@/services/AuthService';
+import { BiometricService, BiometricType } from '@/services/BiometricService';
 
 /**
  * Biometric lock screen
  * Shown when app is locked and requires biometric authentication
  */
 export const BiometricLockScreen: React.FC = () => {
-  const { colors, spacing, typography, borderRadius } = useTheme();
+  const { colors, spacing, typography, borderRadius } = useAppTheme();
   const user = useAuthUser();
   const authService = AuthService.getInstance();
   const biometricService = BiometricService.getInstance();

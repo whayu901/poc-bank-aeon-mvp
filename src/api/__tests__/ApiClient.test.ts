@@ -1,5 +1,5 @@
 import { ApiClient } from '../ApiClient';
-import { ErrorType } from '../../models/AppError';
+import { ErrorType } from '@/models/AppError';
 
 describe('ApiClient', () => {
   let apiClient: ApiClient;

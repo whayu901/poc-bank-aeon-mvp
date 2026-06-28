@@ -1,4 +1,4 @@
-import { Transaction } from '../models/Transaction';
+import { Transaction } from '@/types/transaction';
 
 /**
  * Mock backend service for development and testing

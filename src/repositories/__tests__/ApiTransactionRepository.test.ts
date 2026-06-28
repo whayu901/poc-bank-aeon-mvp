@@ -1,7 +1,7 @@
 import { ApiTransactionRepository } from '../ApiTransactionRepository';
-import { ApiClient } from '../../api/ApiClient';
-import { MockBackend } from '../../api/MockBackend';
-import { ErrorType } from '../../models/AppError';
+import { ApiClient } from '@/api/ApiClient';
+import { MockBackend } from '@/api/MockBackend';
+import { ErrorType } from '@/models/AppError';
 
 describe('ApiTransactionRepository', () => {
   let repository: ApiTransactionRepository;

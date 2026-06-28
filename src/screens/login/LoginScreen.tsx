@@ -13,17 +13,17 @@ import {
   Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useTheme } from '../../hooks/useTheme';
-import { useAuthStore } from '../../store/authStore';
-import { AuthService } from '../../services/AuthService';
-import { BiometricService } from '../../services/BiometricService';
+import { useAppTheme } from '@/theme/useAppTheme';
+import { useAuthStore } from '@/store/authStore';
+import { AuthService } from '@/services/AuthService';
+import { BiometricService } from '@/services/BiometricService';
 
 /**
  * Login screen component
  * Simple form for demonstration - production would have more validation
  */
 export const LoginScreen: React.FC = () => {
-  const { colors, spacing, typography, borderRadius } = useTheme();
+  const { colors, spacing, typography, borderRadius } = useAppTheme();
   const authStore = useAuthStore();
 
   // Form state

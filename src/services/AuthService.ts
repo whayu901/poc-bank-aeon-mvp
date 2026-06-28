@@ -1,9 +1,9 @@
-import { ApiClient } from '../api/ApiClient';
-import { MockBackend } from '../api/MockBackend';
+import { ApiClient } from '@/api/ApiClient';
+import { MockBackend } from '@/api/MockBackend';
 import { SecureStorageService } from './SecureStorageService';
 import { BiometricService } from './BiometricService';
-import { useAuthStore, AuthUser } from '../store/authStore';
-import { AppError, ErrorType, isAppError } from '../models/AppError';
+import { useAuthStore, AuthUser } from '@/store/authStore';
+import { AppError, ErrorType, isAppError } from '@/models/AppError';
 
 /**
  * Authentication result
