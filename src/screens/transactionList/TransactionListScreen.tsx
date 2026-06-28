@@ -12,6 +12,7 @@ import { createTransactionListStyles } from "@/screens/transactionList/styles";
 import { TransactionListHeader } from "@/screens/transactionList/TransactionListHeader";
 import { useTransactionListViewModel } from "@/screens/transactionList/useTransactionListViewModel";
 import { useAppTheme } from "@/theme/useAppTheme";
+import { useActivityTracking } from "@/hooks/useActivityTracking";
 import type { TransactionListScreenProps } from "@/types/navigation";
 import type { Transaction } from "@/types/transaction";
 
@@ -21,6 +22,9 @@ export function TransactionListScreen(props: TransactionListScreenProps) {
   const styles = createTransactionListStyles(colors, spacing, typography);
   const viewModel = useTransactionListViewModel(props);
   const { actions } = viewModel;
+
+  // Track activity when screen is focused
+  const { trackActivity } = useActivityTracking();
 
   const renderTransaction = useCallback(
     ({ item }: { item: Transaction }) => (

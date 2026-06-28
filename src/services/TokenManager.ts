@@ -223,6 +223,9 @@ export class TokenManager {
     const maxRetries = options.maxRetries ?? this.maxRetries;
     let retryCount = 0;
 
+    // Track activity when making authenticated requests
+    this.trackActivity();
+
     while (retryCount <= maxRetries) {
       try {
         // Attempt the request
@@ -276,6 +279,29 @@ export class TokenManager {
    */
   public isCurrentlyRefreshing(): boolean {
     return this.isRefreshing;
+  }
+
+  /**
+   * Track user activity for inactivity timer
+   * Called automatically on API requests
+   */
+  private trackActivity(): void {
+    // Only track if AuthService exists (avoid circular dependency)
+    try {
+      const authState = useAuthStore.getState().authState;
+      if (authState === 'authenticated') {
+        // Update last activity in auth store
+        useAuthStore.getState().updateLastActivity();
+
+        // Update in secure storage
+        this.secureStorage.updateLastActivity().catch(err =>
+          console.debug('[TokenManager] Activity tracked')
+        );
+      }
+    } catch (error) {
+      // Silently ignore if auth tracking fails
+      // This is non-critical functionality
+    }
   }
 
   /**

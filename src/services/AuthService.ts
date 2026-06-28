@@ -406,42 +406,47 @@ export class AuthService {
 
   /**
    * Setup activity tracking for auto-logout on inactivity
-   * This tracks user interactions and resets the inactivity timer
+   * In React Native, activity is tracked through API calls and navigation
+   * since we don't have browser events like clicks or mouse moves
    */
   private setupActivityTracking(): void {
-    if (typeof window === 'undefined') return; // Not in browser environment
+    // In React Native, we track activity differently:
+    // 1. API calls (handled in TokenManager.trackActivity)
+    // 2. Navigation events (handled in screens)
+    // 3. User interactions (handled in components)
 
-    const events = ['mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
+    // The activity tracking is now integrated into:
+    // - TokenManager: tracks API activity
+    // - Navigation: tracks screen changes
+    // - Components: track user interactions
 
-    const handleActivity = () => {
-      // Only track activity when authenticated
-      if (this.isAuthenticated()) {
-        this.resetInactivityTimer();
-        useAuthStore.getState().updateLastActivity();
-
-        // Update last activity in secure storage
-        this.secureStorage.updateLastActivity().catch(err =>
-          console.error('[AuthService] Failed to update last activity:', err)
-        );
-      }
-    };
-
-    // Store listeners for cleanup
-    events.forEach(event => {
-      const listener = () => handleActivity();
-      window.addEventListener(event, listener, { passive: true });
-      this.activityListeners.push(() => window.removeEventListener(event, listener));
-    });
-
-    console.log('[AuthService] Activity tracking initialized');
+    console.log('[AuthService] Activity tracking initialized for React Native');
   }
 
   /**
    * Cleanup activity listeners
+   * In React Native, cleanup is handled by component unmounting
    */
   private cleanupActivityListeners(): void {
-    this.activityListeners.forEach(cleanup => cleanup());
+    // No browser event listeners to clean up in React Native
     this.activityListeners = [];
+  }
+
+  /**
+   * Track user activity manually
+   * Call this from components when user interacts with the app
+   */
+  public trackActivity(): void {
+    // Only track activity when authenticated
+    if (this.isAuthenticated()) {
+      this.resetInactivityTimer();
+      useAuthStore.getState().updateLastActivity();
+
+      // Update last activity in secure storage
+      this.secureStorage.updateLastActivity().catch(err =>
+        console.error('[AuthService] Failed to update last activity:', err)
+      );
+    }
   }
 
   /**
