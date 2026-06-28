@@ -7,7 +7,8 @@ import {
   type ClipboardService,
 } from "@/services/ClipboardService";
 import { nativeShareService, type ShareService } from "@/services/ShareService";
-import { useTransactionStore } from "@/store/transactionStore";
+// Using React Query for transaction data instead of old store
+import { useTransaction } from "@/hooks/useTransactionQueries";
 import type { TransactionDetailScreenProps } from "@/types/navigation";
 import {
   buildTransactionReceipt,
@@ -27,9 +28,10 @@ export function useTransactionDetailViewModel({
 }: UseTransactionDetailViewModelParams) {
   const { t } = useTranslation();
   const [isCopySnackbarVisible, setIsCopySnackbarVisible] = useState(false);
-  const transaction = useTransactionStore((state) =>
-    state.getTransactionByRefId(route.params.refId),
-  );
+
+  // Use React Query to fetch transaction data
+  const { data: transaction, isLoading, error } = useTransaction(route.params.refId);
+
   const transactionType = transaction
     ? getTransactionType(transaction.amount)
     : undefined;
@@ -74,6 +76,8 @@ export function useTransactionDetailViewModel({
     transaction,
     transactionType,
     isCopySnackbarVisible,
+    isLoading,
+    error,
     actions: {
       copyReferenceId,
       shareTransaction,

@@ -79,7 +79,11 @@ export class AuthService {
       const refreshToken = await this.secureStorage.getRefreshToken();
       if (!refreshToken) {
         console.log('[AuthService] No stored session found');
-        useAuthStore.getState().setAuthState('unauthenticated');
+        // Only set state if it's not already unauthenticated
+        const currentState = useAuthStore.getState().authState;
+        if (currentState !== 'unauthenticated') {
+          useAuthStore.getState().setAuthState('unauthenticated');
+        }
         return;
       }
 

@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAppTheme } from '@/theme/useAppTheme';
-import { useAuthStore } from '@/store/authStore';
+import { useSetAuthState } from '@/store/authStore';
 import { AuthService } from '@/services/AuthService';
 import { BiometricService } from '@/services/BiometricService';
 
@@ -24,7 +24,8 @@ import { BiometricService } from '@/services/BiometricService';
  */
 export const LoginScreen: React.FC = () => {
   const { colors, spacing, typography } = useAppTheme();
-  const authStore = useAuthStore();
+  // Use stable selector hook
+  const setAuthState = useSetAuthState();
 
   // Form state
   const [username, setUsername] = useState('');
@@ -48,7 +49,7 @@ export const LoginScreen: React.FC = () => {
     }
 
     setIsLoading(true);
-    authStore.setAuthState('authenticating');
+    setAuthState('authenticating');
 
     try {
       // Attempt login
@@ -56,7 +57,7 @@ export const LoginScreen: React.FC = () => {
 
       if (!result.success) {
         Alert.alert('Login Failed', result.error || 'Invalid credentials');
-        authStore.setAuthState('unauthenticated');
+        setAuthState('unauthenticated');
         return;
       }
 
@@ -77,11 +78,11 @@ export const LoginScreen: React.FC = () => {
     } catch (error) {
       console.error('[LoginScreen] Login error:', error);
       Alert.alert('Error', 'An unexpected error occurred. Please try again.');
-      authStore.setAuthState('unauthenticated');
+      setAuthState('unauthenticated');
     } finally {
       setIsLoading(false);
     }
-  }, [username, password, enableBiometric, authStore, authService, biometricService]);
+  }, [username, password, enableBiometric, setAuthState]);
 
   /**
    * Check biometric availability on mount

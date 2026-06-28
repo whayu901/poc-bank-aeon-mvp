@@ -36,8 +36,37 @@ export function TransactionDetailScreen({
     route,
     shareService,
   });
-  const { transaction, transactionType, actions } = viewModel;
+  const { transaction, transactionType, actions, isLoading, error } = viewModel;
 
+  // Show loading state while fetching data
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.notFoundCard} testID="transaction-loading">
+          <Text style={styles.notFoundTitle}>Loading...</Text>
+          <Text style={styles.notFoundText}>
+            Fetching transaction details...
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Show error state if fetching failed
+  if (error || (!transaction && !isLoading)) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.notFoundCard} testID="transaction-not-found">
+          <Text style={styles.notFoundTitle}>{t.detail.notFoundTitle}</Text>
+          <Text style={styles.notFoundText}>
+            {t.detail.notFoundDescription}
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Show not found if no transaction after loading
   if (!transaction || !transactionType) {
     return (
       <SafeAreaView style={styles.container}>

@@ -4,13 +4,14 @@ import { LoginScreen } from "@/screens/login/LoginScreen";
 import { TransactionDetailScreen } from "@/screens/TransactionDetailScreen";
 import { TransactionListScreen } from "@/screens/TransactionListScreen";
 import { AppInitializer } from "@/services/AppInitializer";
+import { AuthService } from "@/services/AuthService";
 import { useAuthState } from "@/store/authStore";
 import { useAppTheme } from "@/theme/useAppTheme";
 import type { RootStackParamList } from "@/types/navigation";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import React, { useEffect } from "react";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { ActivityIndicator, StyleSheet, View, Text, TouchableOpacity } from "react-native";
 
 const Stack = createNativeStackNavigator<
   RootStackParamList & { Login: undefined; BiometricLock: undefined }
@@ -28,17 +29,27 @@ export function AuthNavigator() {
 
   // Initialize all app services on mount
   useEffect(() => {
+    let isMounted = true;
+
     const initApp = async () => {
       try {
         await AppInitializer.initialize();
-        setIsInitializing(false);
+        if (isMounted) {
+          setIsInitializing(false);
+        }
       } catch (error) {
         console.error("[AuthNavigator] Failed to initialize app:", error);
-        // In production, you might want to show an error screen here
-        setIsInitializing(false);
+        if (isMounted) {
+          setIsInitializing(false);
+        }
       }
     };
+
     initApp();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Show loading while checking auth state
@@ -125,24 +136,20 @@ export function AuthNavigator() {
 /**
  * Logout button component
  */
-const LogoutButton: React.FC = () => {
+const LogoutButton: React.FC = React.memo(() => {
   const { colors } = useAppTheme();
-  const authService = AuthService.getInstance();
 
-  const handleLogout = async () => {
+  const handleLogout = React.useCallback(async () => {
+    const authService = AuthService.getInstance();
     await authService.logout();
-  };
+  }, []);
 
   return (
     <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
       <Text style={[styles.logoutText, { color: colors.primary }]}>Logout</Text>
     </TouchableOpacity>
   );
-};
-
-// Import missing components
-import { AuthService } from "@/services/AuthService";
-import { Text, TouchableOpacity } from "react-native";
+});
 
 const styles = StyleSheet.create({
   loadingContainer: {

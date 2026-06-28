@@ -104,17 +104,9 @@ export function useTransactionListViewModel({
     setTransactionFilters({ dateRange });
   }, [setTransactionFilters]);
 
-  return {
-    transactions,
-    filteredTransactions,
-    isLoading: isLoading || isRefreshing,
-    error: isError ? error : null,
-    language,
-    searchQuery: filters.search,
-    selectedType: filters.type,
-    selectedDateRange: filters.dateRange,
-    hasActiveSearchOrFilters,
-    actions: {
+  // Memoize actions object to prevent re-creating on every render
+  const actions = useMemo(
+    () => ({
       setLanguage,
       setSearchQuery,
       setSelectedType,
@@ -122,6 +114,45 @@ export function useTransactionListViewModel({
       openTransaction,
       retryFetchTransactions,
       refreshTransactions: handleRefresh,
-    },
-  };
+    }),
+    [
+      setLanguage,
+      setSearchQuery,
+      setSelectedType,
+      setSelectedDateRange,
+      openTransaction,
+      retryFetchTransactions,
+      handleRefresh,
+    ]
+  );
+
+  // Memoize the return object as well
+  return useMemo(
+    () => ({
+      transactions,
+      filteredTransactions,
+      isLoading: isLoading || isRefreshing,
+      error: isError ? error : null,
+      language,
+      searchQuery: filters.search,
+      selectedType: filters.type,
+      selectedDateRange: filters.dateRange,
+      hasActiveSearchOrFilters,
+      actions,
+    }),
+    [
+      transactions,
+      filteredTransactions,
+      isLoading,
+      isRefreshing,
+      isError,
+      error,
+      language,
+      filters.search,
+      filters.type,
+      filters.dateRange,
+      hasActiveSearchOrFilters,
+      actions,
+    ]
+  );
 }

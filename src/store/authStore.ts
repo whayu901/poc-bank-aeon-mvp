@@ -181,8 +181,10 @@ const selectIsAuthenticated = (state: AuthStore) => state.authState === 'authent
 const selectIsLocked = (state: AuthStore) => state.authState === 'locked';
 const selectAuthUser = (state: AuthStore) => state.user;
 const selectAuthState = (state: AuthStore) => state.authState;
+const selectSetAuthState = (state: AuthStore) => state.setAuthState;
 
 export const useIsAuthenticated = () => useAuthStore(selectIsAuthenticated);
 export const useIsLocked = () => useAuthStore(selectIsLocked);
 export const useAuthUser = () => useAuthStore(selectAuthUser);
 export const useAuthState = () => useAuthStore(selectAuthState);
+export const useSetAuthState = () => useAuthStore(selectSetAuthState);

@@ -1,6 +1,7 @@
+import React from 'react';
 import { en } from '@/i18n/en';
 import { ms } from '@/i18n/ms';
-import { usePreferencesStore, type Language } from '@/store/preferencesStore';
+import { useLanguage, type Language } from '@/store/preferencesStore';
 
 export const dictionaries = {
   en,
@@ -14,10 +15,17 @@ export function getDictionary(language: Language): Translation {
 }
 
 export function useTranslation() {
-  const language = usePreferencesStore((state) => state.language);
+  // Use the stable selector hook instead of inline selector
+  const language = useLanguage();
 
-  return {
-    language,
-    t: getDictionary(language),
-  };
+  // Memoize the dictionary to prevent creating new object on every render
+  const t = React.useMemo(() => getDictionary(language), [language]);
+
+  return React.useMemo(
+    () => ({
+      language,
+      t,
+    }),
+    [language, t]
+  );
 }

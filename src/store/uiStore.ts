@@ -1,6 +1,7 @@
-import { create } from 'zustand';
-import { devtools, persist } from 'zustand/middleware';
-import { shallow } from 'zustand/shallow';
+import { create } from "zustand";
+import { devtools, persist, createJSONStorage } from "zustand/middleware";
+import { useShallow } from "zustand/shallow";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 /**
  * UI Store - Client-side state only
@@ -25,18 +26,18 @@ import { shallow } from 'zustand/shallow';
  */
 export interface TransactionFilters {
   search: string;
-  type: 'all' | 'incoming' | 'outgoing';
-  dateRange: 'week' | 'month' | 'all';
-  sortBy: 'date' | 'amount';
-  sortOrder: 'asc' | 'desc';
+  type: "all" | "incoming" | "outgoing";
+  dateRange: "week" | "month" | "all";
+  sortBy: "date" | "amount";
+  sortOrder: "asc" | "desc";
 }
 
 /**
  * UI preferences
  */
 export interface UIPreferences {
-  theme: 'light' | 'dark' | 'auto';
-  language: 'en' | 'ms';
+  theme: "light" | "dark" | "auto";
+  language: "en" | "ms";
   compactView: boolean;
   showBalances: boolean; // Hide/show sensitive info
   animations: boolean;
@@ -72,11 +73,13 @@ interface UIStore {
   // Notification state
   notifications: Array<{
     id: string;
-    type: 'success' | 'error' | 'info' | 'warning';
+    type: "success" | "error" | "info" | "warning";
     message: string;
     timestamp: number;
   }>;
-  addNotification: (notification: Omit<UIStore['notifications'][0], 'id' | 'timestamp'>) => void;
+  addNotification: (
+    notification: Omit<UIStore["notifications"][0], "id" | "timestamp">,
+  ) => void;
   removeNotification: (id: string) => void;
   clearNotifications: () => void;
 }
@@ -85,19 +88,19 @@ interface UIStore {
  * Default filter values
  */
 const defaultFilters: TransactionFilters = {
-  search: '',
-  type: 'all',
-  dateRange: 'all',
-  sortBy: 'date',
-  sortOrder: 'desc',
+  search: "",
+  type: "all",
+  dateRange: "all",
+  sortBy: "date",
+  sortOrder: "desc",
 };
 
 /**
  * Default preferences
  */
 const defaultPreferences: UIPreferences = {
-  theme: 'auto',
-  language: 'en',
+  theme: "auto",
+  language: "en",
   compactView: false,
   showBalances: true,
   animations: true,
@@ -119,11 +122,15 @@ export const useUIStore = create<UIStore>()(
               transactionFilters: { ...state.transactionFilters, ...filters },
             }),
             false,
-            'setTransactionFilters'
+            "setTransactionFilters",
           ),
 
         resetTransactionFilters: () =>
-          set({ transactionFilters: defaultFilters }, false, 'resetTransactionFilters'),
+          set(
+            { transactionFilters: defaultFilters },
+            false,
+            "resetTransactionFilters",
+          ),
 
         // UI preferences (persisted)
         preferences: defaultPreferences,
@@ -134,32 +141,35 @@ export const useUIStore = create<UIStore>()(
               preferences: { ...state.preferences, ...prefs },
             }),
             false,
-            'setPreferences'
+            "setPreferences",
           ),
 
         // Sidebar state
         isSidebarOpen: false,
 
         toggleSidebar: () =>
-          set((state) => ({ isSidebarOpen: !state.isSidebarOpen }), false, 'toggleSidebar'),
+          set(
+            (state) => ({ isSidebarOpen: !state.isSidebarOpen }),
+            false,
+            "toggleSidebar",
+          ),
 
         setSidebarOpen: (open) =>
-          set({ isSidebarOpen: open }, false, 'setSidebarOpen'),
+          set({ isSidebarOpen: open }, false, "setSidebarOpen"),
 
         // Modal state
         activeModal: null,
 
         openModal: (modalId) =>
-          set({ activeModal: modalId }, false, 'openModal'),
+          set({ activeModal: modalId }, false, "openModal"),
 
-        closeModal: () =>
-          set({ activeModal: null }, false, 'closeModal'),
+        closeModal: () => set({ activeModal: null }, false, "closeModal"),
 
         // Refresh state
         isRefreshing: false,
 
         setRefreshing: (refreshing) =>
-          set({ isRefreshing: refreshing }, false, 'setRefreshing'),
+          set({ isRefreshing: refreshing }, false, "setRefreshing"),
 
         // Notifications
         notifications: [],
@@ -177,7 +187,7 @@ export const useUIStore = create<UIStore>()(
               notifications: [...state.notifications, newNotification],
             }),
             false,
-            'addNotification'
+            "addNotification",
           );
 
           // Auto-remove after 5 seconds
@@ -192,24 +202,25 @@ export const useUIStore = create<UIStore>()(
               notifications: state.notifications.filter((n) => n.id !== id),
             }),
             false,
-            'removeNotification'
+            "removeNotification",
           ),
 
         clearNotifications: () =>
-          set({ notifications: [] }, false, 'clearNotifications'),
+          set({ notifications: [] }, false, "clearNotifications"),
       }),
       {
-        name: 'ui-preferences', // Storage key
+        name: "ui-preferences", // Storage key
+        storage: createJSONStorage(() => AsyncStorage), // React Native storage
         partialize: (state) => ({
           // Only persist preferences
           preferences: state.preferences,
         }),
-      }
+      },
     ),
     {
-      name: 'ui-store',
-    }
-  )
+      name: "ui-store",
+    },
+  ),
 );
 
 /**
@@ -219,7 +230,7 @@ export const useUIStore = create<UIStore>()(
 
 // Select transaction filters with shallow comparison
 export const useTransactionFilters = () =>
-  useUIStore((state) => state.transactionFilters, shallow);
+  useUIStore(useShallow((state) => state.transactionFilters));
 
 // Select specific filter
 export const useTransactionSearch = () =>
@@ -230,11 +241,10 @@ export const useTransactionType = () =>
 
 // Select preferences with shallow comparison
 export const useUIPreferences = () =>
-  useUIStore((state) => state.preferences, shallow);
+  useUIStore(useShallow((state) => state.preferences));
 
 // Select specific preference
-export const useTheme = () =>
-  useUIStore((state) => state.preferences.theme);
+export const useTheme = () => useUIStore((state) => state.preferences.theme);
 
 export const useLanguage = () =>
   useUIStore((state) => state.preferences.language);
@@ -247,23 +257,21 @@ export const useIsSidebarOpen = () =>
   useUIStore((state) => state.isSidebarOpen);
 
 // Select modal state
-export const useActiveModal = () =>
-  useUIStore((state) => state.activeModal);
+export const useActiveModal = () => useUIStore((state) => state.activeModal);
 
 // Select notifications
 export const useNotifications = () =>
   useUIStore((state) => state.notifications);
 
 // Select refresh state
-export const useIsRefreshing = () =>
-  useUIStore((state) => state.isRefreshing);
+export const useIsRefreshing = () => useUIStore((state) => state.isRefreshing);
 
 /**
  * Action selectors
  */
 export const useUIActions = () =>
   useUIStore(
-    (state) => ({
+    useShallow((state) => ({
       setTransactionFilters: state.setTransactionFilters,
       resetTransactionFilters: state.resetTransactionFilters,
       setPreferences: state.setPreferences,
@@ -272,6 +280,5 @@ export const useUIActions = () =>
       closeModal: state.closeModal,
       setRefreshing: state.setRefreshing,
       addNotification: state.addNotification,
-    }),
-    shallow
+    })),
   );

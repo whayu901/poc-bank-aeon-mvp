@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useMemo } from "react";
 import { FlatList, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -19,7 +19,11 @@ import type { Transaction } from "@/types/transaction";
 export function TransactionListScreen(props: TransactionListScreenProps) {
   const { colors, spacing, typography } = useAppTheme();
   const { t } = useTranslation();
-  const styles = createTransactionListStyles(colors, spacing, typography);
+  // Memoize styles to prevent re-creating on every render
+  const styles = useMemo(
+    () => createTransactionListStyles(colors, spacing, typography),
+    [colors, spacing, typography]
+  );
   const viewModel = useTransactionListViewModel(props);
   const { actions } = viewModel;
 

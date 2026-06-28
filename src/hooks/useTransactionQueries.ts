@@ -88,13 +88,42 @@ export function useTransaction(id: string | undefined) {
 
     // Try to use data from list query first
     initialData: () => {
-      const listData = queryClient.getQueryData<Transaction[]>(
-        queryKeys.transactions.lists()
-      );
-      return listData?.find((t) => t.refId === id || t.id === id);
+      // Look for data in any list query (with or without filters)
+      const cache = queryClient.getQueryCache();
+      const queries = cache.findAll({
+        queryKey: ['api', 'transactions', 'list'],
+        type: 'active'
+      });
+
+      for (const query of queries) {
+        const data = query.state.data as { data: Transaction[] } | Transaction[] | undefined;
+        if (data) {
+          // Handle both response wrapper and direct array
+          const transactions = Array.isArray(data) ? data : data.data;
+          const found = transactions?.find((t) => t.refId === id || t.id === id);
+          if (found) return found;
+        }
+      }
+
+      return undefined;
     },
-    initialDataUpdatedAt: () =>
-      queryClient.getQueryState(queryKeys.transactions.lists())?.dataUpdatedAt,
+    initialDataUpdatedAt: () => {
+      // Get the most recent update time from any list query
+      const cache = queryClient.getQueryCache();
+      const queries = cache.findAll({
+        queryKey: ['api', 'transactions', 'list'],
+        type: 'active'
+      });
+
+      let latestUpdate = 0;
+      for (const query of queries) {
+        if (query.state.dataUpdatedAt && query.state.dataUpdatedAt > latestUpdate) {
+          latestUpdate = query.state.dataUpdatedAt;
+        }
+      }
+
+      return latestUpdate || undefined;
+    },
 
     staleTime: 60 * 1000, // Details are less likely to change
   });
