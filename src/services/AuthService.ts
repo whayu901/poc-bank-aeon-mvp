@@ -2,6 +2,7 @@ import { ApiClient } from '@/api/ApiClient';
 import { MockBackend } from '@/api/MockBackend';
 import { SecureStorageService } from './SecureStorageService';
 import { BiometricService } from './BiometricService';
+import { TokenManager } from './TokenManager';
 import { useAuthStore, AuthUser } from '@/store/authStore';
 import { AppError, ErrorType, isAppError } from '@/models/AppError';
 
@@ -39,15 +40,24 @@ export class AuthService {
   private apiClient: ApiClient;
   private secureStorage: SecureStorageService;
   private biometricService: BiometricService;
+  private tokenManager: TokenManager;
   private mockBackend: MockBackend;
   private inactivityTimer: NodeJS.Timeout | null = null;
+  private activityListeners: (() => void)[] = [];
   private readonly INACTIVITY_TIMEOUT = 5 * 60 * 1000; // 5 minutes
 
   private constructor() {
     this.apiClient = ApiClient.getInstance();
     this.secureStorage = SecureStorageService.getInstance();
     this.biometricService = BiometricService.getInstance();
+    this.tokenManager = TokenManager.getInstance();
     this.mockBackend = MockBackend.getInstance();
+
+    // Initialize token manager for 401 handling
+    this.tokenManager.initialize();
+
+    // Setup activity tracking
+    this.setupActivityTracking();
   }
 
   public static getInstance(): AuthService {
@@ -197,58 +207,41 @@ export class AuthService {
 
   /**
    * Refresh the access token using refresh token
+   * Now delegates to TokenManager for single in-flight refresh
    */
   async refreshToken(refreshToken?: string): Promise<AuthResult> {
     try {
-      // Get refresh token if not provided
-      const token = refreshToken || (await this.secureStorage.getRefreshToken());
-      if (!token) {
-        return { success: false, error: 'No refresh token available' };
+      // If specific refresh token provided, store it first
+      if (refreshToken) {
+        await this.secureStorage.storeRefreshToken(refreshToken);
       }
 
-      console.log('[AuthService] Refreshing token...');
+      // Use TokenManager for refresh (handles single in-flight)
+      const success = await this.tokenManager.refreshToken();
 
-      // Call refresh endpoint
-      const response = await this.apiClient.post<{ data: TokenResponse }>(
-        '/auth/refresh',
-        { refreshToken: token },
-        { skipAuth: true }
-      );
-
-      const tokenData = response.data.data;
-
-      // Store new tokens (rotation)
-      await this.secureStorage.storeRefreshToken(tokenData.refreshToken);
-      this.apiClient.setAccessToken(tokenData.accessToken);
-
-      // Update auth store
-      useAuthStore.getState().setAccessToken(tokenData.accessToken, tokenData.expiresIn);
-
-      // Restore user if not present
-      if (!useAuthStore.getState().user) {
-        const userId = await this.secureStorage.getUserId();
-        if (userId) {
-          const user: AuthUser = {
-            id: userId,
-            username: userId,
-            lastLogin: new Date(),
-          };
-          useAuthStore.getState().setUser(user);
+      if (success) {
+        // Restore user if not present
+        if (!useAuthStore.getState().user) {
+          const userId = await this.secureStorage.getUserId();
+          if (userId) {
+            const user: AuthUser = {
+              id: userId,
+              username: userId,
+              lastLogin: new Date(),
+            };
+            useAuthStore.getState().setUser(user);
+          }
         }
-      }
 
-      console.log('[AuthService] Token refreshed successfully');
-      return { success: true };
-
-    } catch (error) {
-      console.error('[AuthService] Token refresh failed:', error);
-
-      if (isAppError(error) && error.type === ErrorType.UNAUTHORIZED) {
-        // Refresh token is invalid or expired
-        await this.logout();
+        console.log('[AuthService] Token refreshed successfully');
+        return { success: true };
+      } else {
+        // TokenManager will handle logout on failure
         return { success: false, error: 'Session expired. Please login again.' };
       }
 
+    } catch (error) {
+      console.error('[AuthService] Token refresh failed:', error);
       return { success: false, error: 'Failed to refresh session' };
     }
   }
@@ -409,5 +402,84 @@ export class AuthService {
    */
   isLocked(): boolean {
     return useAuthStore.getState().authState === 'locked';
+  }
+
+  /**
+   * Setup activity tracking for auto-logout on inactivity
+   * This tracks user interactions and resets the inactivity timer
+   */
+  private setupActivityTracking(): void {
+    if (typeof window === 'undefined') return; // Not in browser environment
+
+    const events = ['mousedown', 'keydown', 'scroll', 'touchstart', 'click'];
+
+    const handleActivity = () => {
+      // Only track activity when authenticated
+      if (this.isAuthenticated()) {
+        this.resetInactivityTimer();
+        useAuthStore.getState().updateLastActivity();
+
+        // Update last activity in secure storage
+        this.secureStorage.updateLastActivity().catch(err =>
+          console.error('[AuthService] Failed to update last activity:', err)
+        );
+      }
+    };
+
+    // Store listeners for cleanup
+    events.forEach(event => {
+      const listener = () => handleActivity();
+      window.addEventListener(event, listener, { passive: true });
+      this.activityListeners.push(() => window.removeEventListener(event, listener));
+    });
+
+    console.log('[AuthService] Activity tracking initialized');
+  }
+
+  /**
+   * Cleanup activity listeners
+   */
+  private cleanupActivityListeners(): void {
+    this.activityListeners.forEach(cleanup => cleanup());
+    this.activityListeners = [];
+  }
+
+  /**
+   * Check for inactivity on app resume
+   * Call this when app comes to foreground
+   */
+  public async checkInactivityOnResume(): Promise<void> {
+    if (!this.isAuthenticated()) return;
+
+    const lastActivity = await this.secureStorage.getLastActivity();
+    if (!lastActivity) return;
+
+    const inactiveTime = Date.now() - lastActivity;
+    const biometricEnabled = await this.secureStorage.isBiometricEnabled();
+
+    console.log(`[AuthService] App resumed, inactive for ${Math.floor(inactiveTime / 1000)}s`);
+
+    if (inactiveTime > this.INACTIVITY_TIMEOUT) {
+      if (biometricEnabled) {
+        // Lock session if biometric is enabled
+        await this.lockSession();
+        console.log('[AuthService] Session locked due to inactivity');
+      } else {
+        // Logout if no biometric
+        await this.logout();
+        console.log('[AuthService] Logged out due to inactivity');
+      }
+    } else {
+      // Resume normal activity tracking
+      this.resetInactivityTimer();
+    }
+  }
+
+  /**
+   * Cleanup on destroy
+   */
+  public cleanup(): void {
+    this.stopInactivityTimer();
+    this.cleanupActivityListeners();
   }
 }
