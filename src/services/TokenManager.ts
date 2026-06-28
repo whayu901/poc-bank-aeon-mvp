@@ -288,15 +288,18 @@ export class TokenManager {
   private trackActivity(): void {
     // Only track if AuthService exists (avoid circular dependency)
     try {
-      const authState = useAuthStore.getState().authState;
-      if (authState === 'authenticated') {
-        // Update last activity in auth store
-        useAuthStore.getState().updateLastActivity();
+      const state = useAuthStore.getState();
+      const now = Date.now();
 
-        // Update in secure storage
-        this.secureStorage.updateLastActivity().catch(err =>
-          console.debug('[TokenManager] Activity tracked')
-        );
+      // Only update if authenticated and more than 1 second has passed (debounce)
+      if (state.authState === 'authenticated' && now - state.lastActivity > 1000) {
+        // Update last activity in auth store
+        state.updateLastActivity();
+
+        // Update in secure storage (async, don't await)
+        this.secureStorage.updateLastActivity().catch(() => {
+          // Silently ignore storage errors
+        });
       }
     } catch (error) {
       // Silently ignore if auth tracking fails

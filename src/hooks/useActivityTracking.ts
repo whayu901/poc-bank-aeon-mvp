@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { AuthService } from '@/services/AuthService';
 
@@ -12,17 +12,22 @@ import { AuthService } from '@/services/AuthService';
  * This replaces browser event listeners that don't exist in React Native
  */
 export function useActivityTracking() {
-  const authService = AuthService.getInstance();
-
   // Track activity when screen gains focus
-  useFocusEffect(() => {
-    authService.trackActivity();
-  });
+  // Must use useCallback to avoid infinite loops
+  useFocusEffect(
+    useCallback(() => {
+      // Get instance inside the callback to avoid re-renders
+      const authService = AuthService.getInstance();
+      authService.trackActivity();
+      // No cleanup needed
+    }, [])
+  );
 
-  // Return a function that components can call on user interaction
-  const trackActivity = () => {
+  // Return a memoized function that components can call on user interaction
+  const trackActivity = useCallback(() => {
+    const authService = AuthService.getInstance();
     authService.trackActivity();
-  };
+  }, []);
 
   return { trackActivity };
 }

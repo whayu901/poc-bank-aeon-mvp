@@ -176,14 +176,13 @@ export const useAuthStore = create<AuthStoreState>()(
 );
 
 // Selector hooks for common use cases
-export const useIsAuthenticated = () =>
-  useAuthStore((state) => state.authState === 'authenticated');
+// Using stable selectors to avoid re-renders
+const selectIsAuthenticated = (state: AuthStore) => state.authState === 'authenticated';
+const selectIsLocked = (state: AuthStore) => state.authState === 'locked';
+const selectAuthUser = (state: AuthStore) => state.user;
+const selectAuthState = (state: AuthStore) => state.authState;
 
-export const useIsLocked = () =>
-  useAuthStore((state) => state.authState === 'locked');
-
-export const useAuthUser = () =>
-  useAuthStore((state) => state.user);
-
-export const useAuthState = () =>
-  useAuthStore((state) => state.authState);
+export const useIsAuthenticated = () => useAuthStore(selectIsAuthenticated);
+export const useIsLocked = () => useAuthStore(selectIsLocked);
+export const useAuthUser = () => useAuthStore(selectAuthUser);
+export const useAuthState = () => useAuthStore(selectAuthState);

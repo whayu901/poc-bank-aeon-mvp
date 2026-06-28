@@ -439,13 +439,20 @@ export class AuthService {
   public trackActivity(): void {
     // Only track activity when authenticated
     if (this.isAuthenticated()) {
-      this.resetInactivityTimer();
-      useAuthStore.getState().updateLastActivity();
+      // Don't reset timer if it would cause a loop
+      const currentState = useAuthStore.getState();
+      const now = Date.now();
 
-      // Update last activity in secure storage
-      this.secureStorage.updateLastActivity().catch(err =>
-        console.error('[AuthService] Failed to update last activity:', err)
-      );
+      // Only update if more than 1 second has passed (debounce)
+      if (now - currentState.lastActivity > 1000) {
+        this.resetInactivityTimer();
+        currentState.updateLastActivity();
+
+        // Update last activity in secure storage (async, don't await)
+        this.secureStorage.updateLastActivity().catch(() => {
+          // Silently ignore storage errors for activity tracking
+        });
+      }
     }
   }
 
