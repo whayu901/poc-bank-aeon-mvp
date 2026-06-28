@@ -1,76 +1,118 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 
-import { useDebounce } from '@/hooks/useDebounce';
 import { usePreferencesStore } from '@/store/preferencesStore';
-import { useTransactionStore } from '@/store/transactionStore';
 import type { TransactionListScreenProps } from '@/types/navigation';
-import type {
-  TransactionDateRangeFilter,
-  TransactionTypeFilter,
-} from '@/utils/transaction';
 import { getFilteredTransactions } from '@/utils/transaction';
 
-const SEARCH_DEBOUNCE_MS = 300;
+// React Query hooks for server state
+import {
+  useTransactions,
+  useRefreshTransactions,
+  usePrefetchTransaction
+} from '@/hooks/useTransactionQueries';
 
+// Zustand hooks for UI state only
+import {
+  useTransactionFilters,
+  useUIActions,
+  useIsRefreshing,
+} from '@/store/uiStore';
+
+/**
+ * Transaction List View Model
+ *
+ * SEPARATION OF CONCERNS:
+ * - Server State: Managed by React Query (transactions data)
+ * - UI State: Managed by Zustand (filters, search, preferences)
+ *
+ * This demonstrates proper state management architecture for banking apps
+ */
 export function useTransactionListViewModel({
   navigation,
 }: TransactionListScreenProps) {
-  const transactions = useTransactionStore((state) => state.transactions);
-  const isLoading = useTransactionStore((state) => state.isLoading);
-  const error = useTransactionStore((state) => state.error);
-  const fetchTransactions = useTransactionStore((state) => state.fetchTransactions);
+  // UI State from Zustand
+  const filters = useTransactionFilters();
+  const isRefreshing = useIsRefreshing();
+  const { setTransactionFilters, setRefreshing } = useUIActions();
+
+  // Preferences (persisted UI state)
   const language = usePreferencesStore((state) => state.language);
   const setLanguage = usePreferencesStore((state) => state.setLanguage);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedType, setSelectedType] = useState<TransactionTypeFilter>('all');
-  const [selectedDateRange, setSelectedDateRange] =
-    useState<TransactionDateRangeFilter>('all');
-  const debouncedSearchQuery = useDebounce(searchQuery, SEARCH_DEBOUNCE_MS);
 
+  // Server State from React Query
+  const {
+    data: transactions = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useTransactions();
+
+  // Prefetching hook for performance
+  const prefetchTransaction = usePrefetchTransaction();
+
+  // Refresh handler
+  const refreshTransactions = useRefreshTransactions();
+
+  // Apply filters to transactions (computed/derived state)
   const filteredTransactions = useMemo(
     () =>
       getFilteredTransactions({
         transactions,
-        query: debouncedSearchQuery,
-        type: selectedType,
-        dateRange: selectedDateRange,
+        query: filters.search,
+        type: filters.type,
+        dateRange: filters.dateRange,
       }),
-    [debouncedSearchQuery, selectedDateRange, selectedType, transactions],
+    [filters.search, filters.type, filters.dateRange, transactions],
   );
 
   const hasActiveSearchOrFilters =
-    debouncedSearchQuery.trim().length > 0 ||
-    selectedType !== 'all' ||
-    selectedDateRange !== 'all';
+    filters.search.trim().length > 0 ||
+    filters.type !== 'all' ||
+    filters.dateRange !== 'all';
 
-  useEffect(() => {
-    void fetchTransactions();
-  }, [fetchTransactions]);
-
+  // Actions
   const openTransaction = useCallback(
     (refId: string) => {
+      // Prefetch transaction details for better UX
+      prefetchTransaction(refId);
       navigation.navigate('TransactionDetail', { refId });
     },
-    [navigation],
+    [navigation, prefetchTransaction],
   );
 
-  const retryFetchTransactions = useCallback(() => {
-    void fetchTransactions();
-  }, [fetchTransactions]);
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refreshTransactions();
+    setRefreshing(false);
+  }, [refreshTransactions, setRefreshing]);
 
-  const refreshTransactions = useCallback(() => {
-    void fetchTransactions();
-  }, [fetchTransactions]);
+  const retryFetchTransactions = useCallback(() => {
+    void refetch();
+  }, [refetch]);
+
+  // Map UI state setters to expected interface
+  const setSearchQuery = useCallback((search: string) => {
+    setTransactionFilters({ search });
+  }, [setTransactionFilters]);
+
+  const setSelectedType = useCallback((type: 'all' | 'incoming' | 'outgoing') => {
+    setTransactionFilters({ type });
+  }, [setTransactionFilters]);
+
+  const setSelectedDateRange = useCallback((dateRange: 'week' | 'month' | 'all') => {
+    setTransactionFilters({ dateRange });
+  }, [setTransactionFilters]);
 
   return {
     transactions,
     filteredTransactions,
-    isLoading,
-    error,
+    isLoading: isLoading || isRefreshing,
+    error: isError ? error : null,
     language,
-    searchQuery,
-    selectedType,
-    selectedDateRange,
+    searchQuery: filters.search,
+    selectedType: filters.type,
+    selectedDateRange: filters.dateRange,
     hasActiveSearchOrFilters,
     actions: {
       setLanguage,
@@ -79,7 +121,7 @@ export function useTransactionListViewModel({
       setSelectedDateRange,
       openTransaction,
       retryFetchTransactions,
-      refreshTransactions,
+      refreshTransactions: handleRefresh,
     },
   };
 }
