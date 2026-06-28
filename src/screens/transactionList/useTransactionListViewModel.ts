@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from 'react';
 
-import { usePreferencesStore } from '@/store/preferencesStore';
+import { useLanguage, useSetLanguage } from '@/store/preferencesStore';
 import type { TransactionListScreenProps } from '@/types/navigation';
 import { getFilteredTransactions } from '@/utils/transaction';
 
@@ -35,9 +35,9 @@ export function useTransactionListViewModel({
   const isRefreshing = useIsRefreshing();
   const { setTransactionFilters, setRefreshing } = useUIActions();
 
-  // Preferences (persisted UI state)
-  const language = usePreferencesStore((state) => state.language);
-  const setLanguage = usePreferencesStore((state) => state.setLanguage);
+  // Preferences (persisted UI state) - using stable selectors
+  const language = useLanguage();
+  const setLanguage = useSetLanguage();
 
   // Server State from React Query
   const {

@@ -367,8 +367,18 @@ export class AuthService {
   resetInactivityTimer(): void {
     const authState = useAuthStore.getState().authState;
     if (authState === 'authenticated') {
-      this.startInactivityTimer();
-      useAuthStore.getState().updateLastActivity();
+      // Only restart timer, don't update state here to prevent loops
+      this.stopInactivityTimer();
+      this.inactivityTimer = setTimeout(async () => {
+        console.log('[AuthService] Inactivity timeout reached');
+
+        const biometricEnabled = await this.secureStorage.isBiometricEnabled();
+        if (biometricEnabled) {
+          await this.lockSession();
+        } else {
+          await this.logout();
+        }
+      }, this.INACTIVITY_TIMEOUT);
     }
   }
 

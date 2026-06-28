@@ -223,8 +223,8 @@ export class TokenManager {
     const maxRetries = options.maxRetries ?? this.maxRetries;
     let retryCount = 0;
 
-    // Track activity when making authenticated requests
-    this.trackActivity();
+    // Temporarily disable automatic activity tracking to prevent loops
+    // this.trackActivity();
 
     while (retryCount <= maxRetries) {
       try {

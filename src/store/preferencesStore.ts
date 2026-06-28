@@ -26,3 +26,11 @@ export const usePreferencesStore = create<PreferencesState>()(
     },
   ),
 );
+
+// Stable selectors to prevent re-renders
+const selectLanguage = (state: PreferencesState) => state.language;
+const selectSetLanguage = (state: PreferencesState) => state.setLanguage;
+
+// Export selector hooks
+export const useLanguage = () => usePreferencesStore(selectLanguage);
+export const useSetLanguage = () => usePreferencesStore(selectSetLanguage);
