@@ -99,16 +99,29 @@ export class ApiClient {
 
   /**
    * Get singleton instance of ApiClient
+   * If no config is provided, uses default configuration
    */
   public static getInstance(config?: ApiClientConfig): ApiClient {
     if (!ApiClient.instance) {
-      if (!config) {
-        throw new Error(
-          "ApiClient must be initialized with config on first use",
-        );
-      }
-      ApiClient.instance = new ApiClient(config);
+      // Use provided config or default config
+      const defaultConfig: ApiClientConfig = {
+        baseURL: 'http://localhost:3000',
+        timeout: 30000,
+        headers: {},
+        certificatePinning: {
+          enabled: false,
+          pins: [],
+        },
+      };
+
+      ApiClient.instance = new ApiClient(config || defaultConfig);
     }
+
+    // If instance exists but new config is provided, log a warning
+    if (config && ApiClient.instance) {
+      console.warn('[ApiClient] Instance already exists. Ignoring new config.');
+    }
+
     return ApiClient.instance;
   }
 

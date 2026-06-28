@@ -1,6 +1,5 @@
 import { ApiClient } from '@/api/ApiClient';
 import { SecureStorageService } from './SecureStorageService';
-import { AuthService } from './AuthService';
 import { AppError, ErrorType, isAppError } from '@/models/AppError';
 import { useAuthStore } from '@/store/authStore';
 

@@ -35,11 +35,13 @@ describe('ApiClient', () => {
       expect(instance1).toBe(instance2);
     });
 
-    it('should throw error if not initialized with config', () => {
+    it('should use default config if not initialized with config', () => {
       (ApiClient as any).instance = undefined;
-      expect(() => ApiClient.getInstance()).toThrow(
-        'ApiClient must be initialized with config on first use'
-      );
+      const instance = ApiClient.getInstance();
+      expect(instance).toBeDefined();
+      // Default config should be applied
+      expect((instance as any).config.baseURL).toBe('http://localhost:3000');
+      expect((instance as any).config.timeout).toBe(30000);
     });
   });
 

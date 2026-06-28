@@ -1,8 +1,8 @@
-import { Transaction } from '@/types/transaction';
-import { TransactionRepository } from './TransactionRepository';
-import { ApiClient } from '@/api/ApiClient';
-import { MockBackend } from '@/api/MockBackend';
-import { AppError, isAppError } from '@/models/AppError';
+import { ApiClient } from "@/api/ApiClient";
+import { MockBackend } from "@/api/MockBackend";
+import { isAppError } from "@/models/AppError";
+import { Transaction } from "@/types/transaction";
+import { TransactionRepository } from "./TransactionRepository";
 
 /**
  * Production-ready transaction repository using the API client
@@ -13,27 +13,22 @@ export class ApiTransactionRepository implements TransactionRepository {
   private mockBackend: MockBackend;
   private useMockBackend: boolean;
 
-  constructor(baseURL: string = 'http://localhost:3000', useMockBackend: boolean = true) {
+  constructor(useMockBackend: boolean = true) {
     this.useMockBackend = useMockBackend;
     this.mockBackend = MockBackend.getInstance();
 
-    // Initialize API client with configuration
-    this.apiClient = ApiClient.getInstance({
-      baseURL,
-      timeout: 15000, // 15 seconds
-      certificatePinning: {
-        enabled: false, // Enable in production with dev build
-        pins: [
-          // Production pins would go here
-          // { hostname: 'api.aeonbank.com', pin: 'sha256/...' }
-        ],
-      },
-    });
+    // Get the already-initialized API client
+    // ApiClient is initialized in AppInitializer with proper config
+    this.apiClient = ApiClient.getInstance();
 
     // If using mock backend, intercept requests
     if (useMockBackend) {
       this.setupMockInterceptor();
     }
+  }
+
+  async getTransactions(): Promise<Transaction[]> {
+    return this.getAllTransactions();
   }
 
   /**
@@ -42,15 +37,18 @@ export class ApiTransactionRepository implements TransactionRepository {
   private setupMockInterceptor(): void {
     // Override fetch to use mock backend
     const originalFetch = global.fetch;
-    global.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-      const url = typeof input === 'string' ? input : input.toString();
+    global.fetch = async (
+      input: RequestInfo | URL,
+      init?: RequestInit,
+    ): Promise<Response> => {
+      const url = typeof input === "string" ? input : input.toString();
       const urlObj = new URL(url);
       const endpoint = urlObj.pathname;
 
       // Only intercept our API calls
-      if (url.includes('localhost:3000') || url.includes('/api/')) {
+      if (url.includes("localhost:3000") || url.includes("/api/")) {
         const headers = new Headers(init?.headers);
-        const method = init?.method || 'GET';
+        const method = init?.method || "GET";
         let body: any;
 
         if (init?.body) {
@@ -74,22 +72,27 @@ export class ApiTransactionRepository implements TransactionRepository {
    */
   async getAllTransactions(): Promise<Transaction[]> {
     try {
-      const response = await this.apiClient.get<{ data: Transaction[] }>('/api/transactions');
+      const response = await this.apiClient.get<{ data: Transaction[] }>(
+        "/api/transactions",
+      );
       return response.data.data;
     } catch (error) {
       // Handle AppError consistently
       if (isAppError(error)) {
-        console.error(`[ApiTransactionRepository] Error fetching transactions:`, {
-          type: error.type,
-          message: error.message,
-          statusCode: error.statusCode,
-          requestId: error.requestId,
-        });
+        console.error(
+          `[ApiTransactionRepository] Error fetching transactions:`,
+          {
+            type: error.type,
+            message: error.message,
+            statusCode: error.statusCode,
+            requestId: error.requestId,
+          },
+        );
         throw error;
       }
 
       // Unexpected error
-      console.error('[ApiTransactionRepository] Unexpected error:', error);
+      console.error("[ApiTransactionRepository] Unexpected error:", error);
       throw error;
     }
   }
@@ -99,20 +102,27 @@ export class ApiTransactionRepository implements TransactionRepository {
    */
   async getTransactionById(id: string): Promise<Transaction | null> {
     try {
-      const response = await this.apiClient.get<{ data: Transaction }>(`/api/transactions/${id}`);
+      const response = await this.apiClient.get<{ data: Transaction }>(
+        `/api/transactions/${id}`,
+      );
       return response.data.data;
     } catch (error) {
       if (isAppError(error) && error.statusCode === 404) {
         return null;
       }
 
-      console.error(`[ApiTransactionRepository] Error fetching transaction ${id}:`, {
-        error: isAppError(error) ? {
-          type: error.type,
-          message: error.message,
-          statusCode: error.statusCode,
-        } : error,
-      });
+      console.error(
+        `[ApiTransactionRepository] Error fetching transaction ${id}:`,
+        {
+          error: isAppError(error)
+            ? {
+                type: error.type,
+                message: error.message,
+                statusCode: error.statusCode,
+              }
+            : error,
+        },
+      );
       throw error;
     }
   }

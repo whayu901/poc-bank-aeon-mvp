@@ -1,18 +1,20 @@
-import React, { useEffect } from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useAuthStore, useAuthState } from '@/store/authStore';
-import { AuthService } from '@/services/AuthService';
-import { LoginScreen } from '@/screens/login/LoginScreen';
-import { BiometricLockScreen } from '@/screens/login/BiometricLockScreen';
-import { TransactionListScreen } from '@/screens/TransactionListScreen';
-import { TransactionDetailScreen } from '@/screens/TransactionDetailScreen';
-import { useAppTheme } from '@/theme/useAppTheme';
-import { useTranslation } from '@/i18n';
-import type { RootStackParamList } from '@/types/navigation';
+import { useTranslation } from "@/i18n";
+import { BiometricLockScreen } from "@/screens/login/BiometricLockScreen";
+import { LoginScreen } from "@/screens/login/LoginScreen";
+import { TransactionDetailScreen } from "@/screens/TransactionDetailScreen";
+import { TransactionListScreen } from "@/screens/TransactionListScreen";
+import { AppInitializer } from "@/services/AppInitializer";
+import { useAuthState } from "@/store/authStore";
+import { useAppTheme } from "@/theme/useAppTheme";
+import type { RootStackParamList } from "@/types/navigation";
+import { NavigationContainer } from "@react-navigation/native";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import React, { useEffect } from "react";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
 
-const Stack = createNativeStackNavigator<RootStackParamList & { Login: undefined; BiometricLock: undefined }>();
+const Stack = createNativeStackNavigator<
+  RootStackParamList & { Login: undefined; BiometricLock: undefined }
+>();
 
 /**
  * Auth-aware navigation container
@@ -24,20 +26,30 @@ export function AuthNavigator() {
   const authState = useAuthState();
   const [isInitializing, setIsInitializing] = React.useState(true);
 
-  // Initialize auth service on mount
+  // Initialize all app services on mount
   useEffect(() => {
-    const initAuth = async () => {
-      const authService = AuthService.getInstance();
-      await authService.initialize();
-      setIsInitializing(false);
+    const initApp = async () => {
+      try {
+        await AppInitializer.initialize();
+        setIsInitializing(false);
+      } catch (error) {
+        console.error("[AuthNavigator] Failed to initialize app:", error);
+        // In production, you might want to show an error screen here
+        setIsInitializing(false);
+      }
     };
-    initAuth();
+    initApp();
   }, []);
 
   // Show loading while checking auth state
   if (isInitializing) {
     return (
-      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+      <View
+        style={[
+          styles.loadingContainer,
+          { backgroundColor: colors.background },
+        ]}
+      >
         <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
@@ -46,7 +58,7 @@ export function AuthNavigator() {
   return (
     <NavigationContainer
       theme={{
-        dark: colorScheme === 'dark',
+        dark: colorScheme === "dark",
         colors: {
           primary: colors.primary,
           background: colors.background,
@@ -56,10 +68,10 @@ export function AuthNavigator() {
           notification: colors.accent,
         },
         fonts: {
-          regular: { fontFamily: 'System', fontWeight: '400' },
-          medium: { fontFamily: 'System', fontWeight: '500' },
-          bold: { fontFamily: 'System', fontWeight: '700' },
-          heavy: { fontFamily: 'System', fontWeight: '800' },
+          regular: { fontFamily: "System", fontWeight: "400" },
+          medium: { fontFamily: "System", fontWeight: "500" },
+          bold: { fontFamily: "System", fontWeight: "700" },
+          heavy: { fontFamily: "System", fontWeight: "800" },
         },
       }}
     >
@@ -69,10 +81,10 @@ export function AuthNavigator() {
           headerShadowVisible: false,
           headerStyle: { backgroundColor: colors.background },
           headerTintColor: colors.textPrimary,
-          headerTitleStyle: { fontWeight: '700' },
+          headerTitleStyle: { fontWeight: "700" },
         }}
       >
-        {authState === 'unauthenticated' && (
+        {authState === "unauthenticated" && (
           <Stack.Screen
             name="Login"
             component={LoginScreen}
@@ -80,7 +92,7 @@ export function AuthNavigator() {
           />
         )}
 
-        {authState === 'locked' && (
+        {authState === "locked" && (
           <Stack.Screen
             name="BiometricLock"
             component={BiometricLockScreen}
@@ -88,7 +100,7 @@ export function AuthNavigator() {
           />
         )}
 
-        {(authState === 'authenticated' || authState === 'authenticating') && (
+        {(authState === "authenticated" || authState === "authenticating") && (
           <>
             <Stack.Screen
               name="TransactionList"
@@ -129,19 +141,20 @@ const LogoutButton: React.FC = () => {
 };
 
 // Import missing components
-import { TouchableOpacity, Text } from 'react-native';
+import { AuthService } from "@/services/AuthService";
+import { Text, TouchableOpacity } from "react-native";
 
 const styles = StyleSheet.create({
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   logoutButton: {
     padding: 8,
   },
   logoutText: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: "500",
   },
 });
