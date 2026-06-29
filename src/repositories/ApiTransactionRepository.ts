@@ -135,6 +135,10 @@ export class ApiTransactionRepository implements TransactionRepository {
     shouldFailNetwork?: boolean;
     shouldTimeout?: boolean;
     latency?: number;
+    refreshOverloadEnabled?: boolean;
+    refreshCapacity?: number;
+    refreshProcessingMs?: number;
+    refreshRetryAfterSeconds?: number;
   }): void {
     if (this.useMockBackend) {
       this.mockBackend.configure(options);

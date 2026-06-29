@@ -19,14 +19,33 @@ interface TokenRefreshResponse {
  * Handles advanced token management scenarios:
  * - Automatic token refresh on 401
  * - Refresh token rotation (single-use refresh tokens)
- * - Single in-flight refresh (prevents thundering herd)
+ * - Single in-flight refresh (prevents per-device thundering herd)
+ * - Jitter + exponential backoff (prevents fleet-wide thundering herd)
  * - Retry original request after refresh
  * - Force logout on refresh failure
+ *
+ * Thundering herd defense (two distinct problems):
+ *
+ *   1. INTRA-DEVICE herd — one device fires many requests at once (transaction
+ *      list + balance + profile), each gets a 401. Solved by the single
+ *      in-flight `refreshPromise`: only ONE refresh leaves the device.
+ *
+ *   2. INTER-DEVICE herd — the "9 AM in Malaysia" spike. A thousand DIFFERENT
+ *      devices each legitimately need one refresh and all fire it in the same
+ *      instant. Per-device dedup cannot help (1 device = 1 refresh). If they
+ *      all hit at once the endpoint falls over, returns 429/503/timeouts, and
+ *      every client instantly retries — a second, worse herd. Solved by:
+ *        - startup JITTER: each device waits a random delay before refreshing,
+ *          smearing the synchronized spike across a window.
+ *        - exponential BACKOFF + full jitter on retryable failures, so a
+ *          shed-load response makes clients back off instead of re-hammering.
+ *        - honoring the server's `Retry-After` header.
  *
  * Security principles:
  * - Refresh tokens are single-use (rotation prevents replay attacks)
  * - Only one refresh request at a time (prevents race conditions)
- * - Failed refresh = immediate logout (security over convenience)
+ * - A 401 on the refresh call itself is NOT retried — the token is genuinely
+ *   dead, so we fail fast and log out (security over convenience).
  */
 export class TokenManager {
   private static instance: TokenManager;
@@ -34,8 +53,19 @@ export class TokenManager {
   private secureStorage: SecureStorageService;
   private refreshPromise: Promise<boolean> | null = null;
   private isRefreshing = false;
-  private maxRetries = 1; // Only retry once after refresh
+  private maxRetries = 1; // Only retry the ORIGINAL request once after refresh
   private refreshEndpoint = '/auth/refresh';
+
+  // --- Inter-device thundering herd tuning ---------------------------------
+  // Max random delay applied BEFORE the first refresh attempt. Spreads a
+  // synchronized fleet-wide spike (e.g. 1000 devices at 9 AM) across this
+  // window. Tune against backend capacity vs. acceptable login latency.
+  private refreshInitialJitterMs = 4000;
+  // Max attempts for the refresh CALL itself (initial + backoff retries).
+  private maxRefreshAttempts = 4;
+  // Exponential backoff base and ceiling for retryable refresh failures.
+  private refreshBackoffBaseMs = 500;
+  private refreshBackoffMaxMs = 20000;
 
   private constructor() {
     this.apiClient = ApiClient.getInstance();
@@ -140,59 +170,168 @@ export class TokenManager {
   }
 
   /**
-   * Perform the actual token refresh
+   * Perform the actual token refresh.
+   *
+   * Wrapped in inter-device thundering-herd defenses: an initial random jitter
+   * to desynchronize a fleet-wide spike, then exponential backoff + full jitter
+   * across retryable failures (overload / network), honoring `Retry-After`.
    */
   private async performTokenRefresh(): Promise<boolean> {
     this.isRefreshing = true;
 
     try {
-      const oldRefreshToken = await this.secureStorage.getRefreshToken();
-      if (!oldRefreshToken) {
-        console.log('[TokenManager] No refresh token available');
-        return false;
-      }
+      // STEP 1 — Initial jitter.
+      // The whole point of the "9 AM" scenario is that every device fires at
+      // the SAME instant. A small random delay here smears those calls across
+      // a window so the endpoint sees a ramp, not a wall. Other concurrent
+      // 401s on THIS device are already parked on the shared refreshPromise,
+      // so this delay costs the device nothing extra.
+      await this.sleep(this.randomBetween(0, this.refreshInitialJitterMs));
 
-      console.log('[TokenManager] Performing token refresh...');
+      let lastError: unknown = null;
 
-      // Call refresh endpoint
-      const response = await this.apiClient.post<{ data: TokenRefreshResponse }>(
-        this.refreshEndpoint,
-        { refreshToken: oldRefreshToken },
-        {
-          skipAuth: true, // Don't add auth header to refresh request
-          timeout: 10000, // 10 second timeout for refresh
+      for (let attempt = 0; attempt < this.maxRefreshAttempts; attempt++) {
+        // Read the token fresh each attempt — it never changes here, but this
+        // keeps the rotation contract explicit.
+        const oldRefreshToken = await this.secureStorage.getRefreshToken();
+        if (!oldRefreshToken) {
+          console.log('[TokenManager] No refresh token available');
+          return false;
         }
-      );
 
-      const tokenData = response.data.data;
+        try {
+          console.log(
+            `[TokenManager] Performing token refresh (attempt ${attempt + 1}/${this.maxRefreshAttempts})...`
+          );
 
-      // REFRESH TOKEN ROTATION
-      // The old refresh token is now invalid (single-use)
-      // Store the new refresh token immediately
-      console.log('[TokenManager] Rotating refresh token (single-use)');
-      await this.secureStorage.storeRefreshToken(tokenData.refreshToken);
+          const response = await this.apiClient.post<{ data: TokenRefreshResponse }>(
+            this.refreshEndpoint,
+            { refreshToken: oldRefreshToken },
+            {
+              skipAuth: true, // Don't add auth header to refresh request
+              timeout: 10000, // 10 second timeout for refresh
+            }
+          );
 
-      // Update access token in API client
-      this.apiClient.setAccessToken(tokenData.accessToken);
+          const tokenData = response.data.data;
 
-      // Update auth store
-      useAuthStore.getState().setAccessToken(tokenData.accessToken, tokenData.expiresIn);
+          // REFRESH TOKEN ROTATION
+          // The old refresh token is now invalid (single-use).
+          // Store the new refresh token immediately.
+          console.log('[TokenManager] Rotating refresh token (single-use)');
+          await this.secureStorage.storeRefreshToken(tokenData.refreshToken);
 
-      console.log('[TokenManager] Token refresh and rotation successful');
-      return true;
+          // Update access token in API client
+          this.apiClient.setAccessToken(tokenData.accessToken);
 
-    } catch (error) {
-      console.error('[TokenManager] Token refresh failed:', error);
+          // Update auth store
+          useAuthStore.getState().setAccessToken(tokenData.accessToken, tokenData.expiresIn);
 
-      // Check if it's a 401 on refresh itself
-      if (isAppError(error) && error.type === ErrorType.UNAUTHORIZED) {
-        console.log('[TokenManager] Refresh token is invalid or expired');
+          console.log('[TokenManager] Token refresh and rotation successful');
+          return true;
+
+        } catch (error) {
+          lastError = error;
+
+          // A 401/403 on the refresh call means the refresh token itself is
+          // genuinely invalid/expired. Retrying cannot help and only adds load
+          // — fail fast so the caller logs the user out.
+          if (
+            isAppError(error) &&
+            (error.type === ErrorType.UNAUTHORIZED || error.type === ErrorType.FORBIDDEN)
+          ) {
+            console.log('[TokenManager] Refresh token is invalid or expired — not retrying');
+            return false;
+          }
+
+          // Everything else (429, 5xx, timeout, network) is the endpoint
+          // shedding load or flaking. These ARE retryable — but only with
+          // backoff, otherwise we just reform the herd.
+          if (!this.isRetryableRefreshError(error)) {
+            console.error('[TokenManager] Non-retryable refresh error:', error);
+            return false;
+          }
+
+          // No retries left.
+          if (attempt >= this.maxRefreshAttempts - 1) {
+            break;
+          }
+
+          const delayMs = this.computeBackoffDelay(attempt, error);
+          console.log(
+            `[TokenManager] Refresh attempt ${attempt + 1} failed (${this.describeError(error)}), ` +
+              `backing off ${delayMs}ms before retry`
+          );
+          await this.sleep(delayMs);
+        }
       }
 
+      console.error('[TokenManager] Token refresh exhausted all attempts:', lastError);
       return false;
     } finally {
       this.isRefreshing = false;
     }
+  }
+
+  /**
+   * Whether a refresh failure is worth retrying (with backoff).
+   * Overload (429), server errors (5xx), timeouts and network blips are
+   * transient. Auth failures (401/403) are handled separately and never retried.
+   */
+  private isRetryableRefreshError(error: unknown): boolean {
+    if (!isAppError(error)) {
+      return false;
+    }
+
+    if (error.statusCode === 429) return true; // Too Many Requests / rate limited
+    if (error.statusCode !== undefined && error.statusCode >= 500) return true; // 5xx
+
+    return (
+      error.type === ErrorType.SERVER_ERROR ||
+      error.type === ErrorType.TIMEOUT ||
+      error.type === ErrorType.NETWORK
+    );
+  }
+
+  /**
+   * Exponential backoff with FULL jitter, honoring the server's `Retry-After`.
+   *
+   * Full jitter (delay = random(0, cap)) rather than fixed exponential is what
+   * actually breaks up the herd: if every client backed off by the same
+   * computed amount they would simply retry in lockstep again.
+   */
+  private computeBackoffDelay(attempt: number, error: unknown): number {
+    // If the server told us when to come back, respect it (plus a little
+    // jitter so the retry wave is still spread out).
+    if (isAppError(error) && typeof error.retryAfterMs === 'number') {
+      return error.retryAfterMs + this.randomBetween(0, this.refreshBackoffBaseMs);
+    }
+
+    const exponentialCap = Math.min(
+      this.refreshBackoffMaxMs,
+      this.refreshBackoffBaseMs * 2 ** attempt
+    );
+    return this.randomBetween(0, exponentialCap);
+  }
+
+  /** Promise-based delay. */
+  private sleep(ms: number): Promise<void> {
+    if (ms <= 0) return Promise.resolve();
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  /** Inclusive-of-zero random integer in [min, max]. */
+  private randomBetween(min: number, max: number): number {
+    if (max <= min) return min;
+    return Math.floor(min + Math.random() * (max - min));
+  }
+
+  /** Short, non-sensitive description of a refresh error for logging. */
+  private describeError(error: unknown): string {
+    if (isAppError(error)) {
+      return `${error.type}${error.statusCode ? ` ${error.statusCode}` : ''}`;
+    }
+    return 'unknown error';
   }
 
   /**

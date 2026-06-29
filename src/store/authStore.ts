@@ -1,14 +1,14 @@
-import { create } from 'zustand';
-import { devtools } from 'zustand/middleware';
+import { create } from "zustand";
+import { devtools } from "zustand/middleware";
 
 /**
  * Authentication states for the app
  */
 export type AuthState =
-  | 'unauthenticated'  // No session, user needs to login
-  | 'authenticating'    // Login in progress
-  | 'authenticated'     // Valid session, full access
-  | 'locked';          // Session exists but needs biometric unlock
+  | "unauthenticated" // No session, user needs to login
+  | "authenticating" // Login in progress
+  | "authenticated" // Valid session, full access
+  | "locked"; // Session exists but needs biometric unlock
 
 /**
  * User information from auth
@@ -64,7 +64,7 @@ export const useAuthStore = create<AuthStoreState>()(
   devtools(
     (set, get) => ({
       // Initial state
-      authState: 'unauthenticated',
+      authState: "unauthenticated",
       user: null,
       accessToken: null,
       tokenExpiresAt: null,
@@ -72,27 +72,21 @@ export const useAuthStore = create<AuthStoreState>()(
       lastActivity: Date.now(),
 
       // Basic setters
-      setAuthState: (authState) => set({ authState }, false, 'setAuthState'),
+      setAuthState: (authState) => set({ authState }, false, "setAuthState"),
 
-      setUser: (user) => set({ user }, false, 'setUser'),
+      setUser: (user) => set({ user }, false, "setUser"),
 
       setAccessToken: (accessToken, expiresIn) => {
-        const tokenExpiresAt = expiresIn
-          ? Date.now() + expiresIn * 1000
-          : null;
+        const tokenExpiresAt = expiresIn ? Date.now() + expiresIn * 1000 : null;
 
-        set(
-          { accessToken, tokenExpiresAt },
-          false,
-          'setAccessToken'
-        );
+        set({ accessToken, tokenExpiresAt }, false, "setAccessToken");
       },
 
       setBiometricEnabled: (biometricEnabled) =>
-        set({ biometricEnabled }, false, 'setBiometricEnabled'),
+        set({ biometricEnabled }, false, "setBiometricEnabled"),
 
       updateLastActivity: () =>
-        set({ lastActivity: Date.now() }, false, 'updateLastActivity'),
+        set({ lastActivity: Date.now() }, false, "updateLastActivity"),
 
       // Complex actions
       login: (user, accessToken, expiresIn) => {
@@ -100,28 +94,28 @@ export const useAuthStore = create<AuthStoreState>()(
 
         set(
           {
-            authState: 'authenticated',
+            authState: "authenticated",
             user,
             accessToken,
             tokenExpiresAt,
             lastActivity: Date.now(),
           },
           false,
-          'login'
+          "login",
         );
       },
 
       logout: () => {
         set(
           {
-            authState: 'unauthenticated',
+            authState: "unauthenticated",
             user: null,
             accessToken: null,
             tokenExpiresAt: null,
             lastActivity: Date.now(),
           },
           false,
-          'logout'
+          "logout",
         );
       },
 
@@ -129,11 +123,11 @@ export const useAuthStore = create<AuthStoreState>()(
         // Keep user and token info but require biometric
         set(
           {
-            authState: 'locked',
+            authState: "locked",
             accessToken: null, // Clear from memory for security
           },
           false,
-          'lockSession'
+          "lockSession",
         );
       },
 
@@ -142,11 +136,11 @@ export const useAuthStore = create<AuthStoreState>()(
         // Note: Access token needs to be refreshed after unlock
         set(
           {
-            authState: 'authenticated',
+            authState: "authenticated",
             lastActivity: Date.now(),
           },
           false,
-          'unlockSession'
+          "unlockSession",
         );
       },
 
@@ -161,27 +155,28 @@ export const useAuthStore = create<AuthStoreState>()(
 
       isSessionActive: () => {
         const state = get();
-        return state.authState === 'authenticated' && !state.isTokenExpired();
+        return state.authState === "authenticated" && !state.isTokenExpired();
       },
 
       shouldRequireBiometric: () => {
         const state = get();
-        return state.biometricEnabled && state.authState === 'locked';
+        return state.biometricEnabled && state.authState === "locked";
       },
     }),
     {
-      name: 'auth-store',
-    }
-  )
+      name: "auth-store",
+    },
+  ),
 );
 
 // Selector hooks for common use cases
 // Using stable selectors to avoid re-renders
-const selectIsAuthenticated = (state: AuthStore) => state.authState === 'authenticated';
-const selectIsLocked = (state: AuthStore) => state.authState === 'locked';
-const selectAuthUser = (state: AuthStore) => state.user;
-const selectAuthState = (state: AuthStore) => state.authState;
-const selectSetAuthState = (state: AuthStore) => state.setAuthState;
+const selectIsAuthenticated = (state: AuthStoreState) =>
+  state.authState === "authenticated";
+const selectIsLocked = (state: AuthStoreState) => state.authState === "locked";
+const selectAuthUser = (state: AuthStoreState) => state.user;
+const selectAuthState = (state: AuthStoreState) => state.authState;
+const selectSetAuthState = (state: AuthStoreState) => state.setAuthState;
 
 export const useIsAuthenticated = () => useAuthStore(selectIsAuthenticated);
 export const useIsLocked = () => useAuthStore(selectIsLocked);

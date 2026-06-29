@@ -1,12 +1,12 @@
-import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import React from 'react';
+import { NavigationContainer } from "@react-navigation/native";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import React from "react";
 
-import { useTranslation } from '@/i18n';
-import { TransactionDetailScreen } from '@/screens/TransactionDetailScreen';
-import { TransactionListScreen } from '@/screens/TransactionListScreen';
-import { useAppTheme } from '@/theme/useAppTheme';
-import type { RootStackParamList } from '@/types/navigation';
+import { useTranslation } from "@/i18n";
+import { TransactionDetailScreen } from "@/screens/TransactionDetailScreen";
+import { TransactionListScreen } from "@/screens/TransactionListScreen";
+import { useAppTheme } from "@/theme/useAppTheme";
+import type { RootStackParamList } from "@/types/navigation";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -17,7 +17,7 @@ export function AppNavigator() {
   return (
     <NavigationContainer
       theme={{
-        dark: colorScheme === 'dark',
+        dark: colorScheme === "dark",
         colors: {
           primary: colors.primary,
           background: colors.background,
@@ -27,12 +27,13 @@ export function AppNavigator() {
           notification: colors.accent,
         },
         fonts: {
-          regular: { fontFamily: 'System', fontWeight: '400' },
-          medium: { fontFamily: 'System', fontWeight: '500' },
-          bold: { fontFamily: 'System', fontWeight: '700' },
-          heavy: { fontFamily: 'System', fontWeight: '800' },
+          regular: { fontFamily: "System", fontWeight: "400" },
+          medium: { fontFamily: "System", fontWeight: "500" },
+          bold: { fontFamily: "System", fontWeight: "700" },
+          heavy: { fontFamily: "System", fontWeight: "800" },
         },
-      }}>
+      }}
+    >
       <Stack.Navigator
         initialRouteName="TransactionList"
         screenOptions={{
@@ -40,8 +41,9 @@ export function AppNavigator() {
           headerShadowVisible: false,
           headerStyle: { backgroundColor: colors.background },
           headerTintColor: colors.textPrimary,
-          headerTitleStyle: { fontWeight: '700' },
-        }}>
+          headerTitleStyle: { fontWeight: "700" },
+        }}
+      >
         <Stack.Screen
           name="TransactionList"
           component={TransactionListScreen}

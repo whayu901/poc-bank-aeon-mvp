@@ -20,6 +20,7 @@ export interface AppError {
   originalError?: unknown;
   timestamp: Date;
   requestId?: string; // For tracing in production
+  retryAfterMs?: number; // Parsed from a `Retry-After` response header, in milliseconds
 }
 
 /**
@@ -31,7 +32,8 @@ export function createAppError(
   message: string,
   statusCode?: number,
   originalError?: unknown,
-  requestId?: string
+  requestId?: string,
+  retryAfterMs?: number
 ): AppError {
   // Strip any sensitive fields from the original error
   const sanitizedError = sanitizeError(originalError);
@@ -43,7 +45,31 @@ export function createAppError(
     originalError: sanitizedError,
     timestamp: new Date(),
     requestId,
+    retryAfterMs,
   };
+}
+
+/**
+ * Parses an HTTP `Retry-After` header into milliseconds.
+ * Supports both the delta-seconds form (e.g. "120") and the HTTP-date form.
+ * Returns undefined when the header is absent or unparseable.
+ */
+export function parseRetryAfter(headerValue: string | null | undefined): number | undefined {
+  if (!headerValue) return undefined;
+
+  // delta-seconds form: a non-negative integer number of seconds
+  const seconds = Number(headerValue);
+  if (Number.isFinite(seconds)) {
+    return Math.max(0, seconds * 1000);
+  }
+
+  // HTTP-date form: an absolute timestamp to wait until
+  const retryAtMs = Date.parse(headerValue);
+  if (!Number.isNaN(retryAtMs)) {
+    return Math.max(0, retryAtMs - Date.now());
+  }
+
+  return undefined;
 }
 
 /**

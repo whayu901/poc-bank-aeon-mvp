@@ -11,7 +11,13 @@ import type { RootStackParamList } from "@/types/navigation";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import React, { useEffect } from "react";
-import { ActivityIndicator, StyleSheet, View, Text, TouchableOpacity } from "react-native";
+import {
+  ActivityIndicator,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 const Stack = createNativeStackNavigator<
   RootStackParamList & { Login: undefined; BiometricLock: undefined }

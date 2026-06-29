@@ -252,4 +252,103 @@ describe('MockBackend', () => {
       expect(endTime - startTime).toBeGreaterThanOrEqual(100);
     });
   });
+
+  describe('thundering-herd overload (POST /auth/refresh)', () => {
+    const jsonHeaders = new Headers({ 'Content-Type': 'application/json' });
+
+    /** Logs in `count` simulated devices and returns their refresh tokens. */
+    async function loginDevices(count: number): Promise<string[]> {
+      const tokens: string[] = [];
+      for (let i = 0; i < count; i++) {
+        const res = await mockBackend.handleRequest('POST', '/auth/login', jsonHeaders, {
+          username: `user${i}`,
+          password: 'pw',
+        });
+        const data = await res.json();
+        tokens.push(data.data.refreshToken);
+      }
+      return tokens;
+    }
+
+    it('sheds excess concurrent refreshes with 429 + Retry-After when capacity is exceeded', async () => {
+      // Server can process only 3 refreshes at once; each holds its slot 60ms.
+      mockBackend.configure({
+        latency: 0,
+        refreshOverloadEnabled: true,
+        refreshCapacity: 3,
+        refreshProcessingMs: 60,
+        refreshRetryAfterSeconds: 2,
+      });
+
+      const tokens = await loginDevices(10);
+
+      // The "9 AM" herd: all 10 devices refresh in the same instant.
+      const responses = await Promise.all(
+        tokens.map((refreshToken) =>
+          mockBackend.handleRequest('POST', '/auth/refresh', jsonHeaders, { refreshToken })
+        )
+      );
+
+      const accepted = responses.filter((r) => r.status === 200);
+      const shed = responses.filter((r) => r.status === 429);
+
+      // Some succeeded, the overflow was shed — not everyone got through at once.
+      expect(accepted.length).toBeGreaterThan(0);
+      expect(shed.length).toBeGreaterThan(0);
+      expect(accepted.length + shed.length).toBe(10);
+
+      // The server never processed more than its capacity simultaneously.
+      const stats = mockBackend.getRefreshOverloadStats();
+      expect(stats.peakInflight).toBeLessThanOrEqual(3);
+      expect(stats.rejectionCount).toBe(shed.length);
+
+      // Shed responses tell the client when to come back.
+      expect(shed[0].headers.get('Retry-After')).toBe('2');
+    });
+
+    it('keeps a shed refresh token valid so a backed-off retry can succeed', async () => {
+      mockBackend.configure({
+        latency: 0,
+        refreshOverloadEnabled: true,
+        refreshCapacity: 1,
+        refreshProcessingMs: 40,
+        refreshRetryAfterSeconds: 1,
+      });
+
+      const [tokenA, tokenB] = await loginDevices(2);
+
+      // Two devices hit at once with capacity 1 → exactly one is shed.
+      const [resA, resB] = await Promise.all([
+        mockBackend.handleRequest('POST', '/auth/refresh', jsonHeaders, { refreshToken: tokenA }),
+        mockBackend.handleRequest('POST', '/auth/refresh', jsonHeaders, { refreshToken: tokenB }),
+      ]);
+
+      const statuses = [resA.status, resB.status].sort();
+      expect(statuses).toEqual([200, 429]);
+
+      // Identify the device that was shed and retry it after the slot frees.
+      const shedToken = resA.status === 429 ? tokenA : tokenB;
+      await new Promise((resolve) => setTimeout(resolve, 60));
+
+      const retry = await mockBackend.handleRequest('POST', '/auth/refresh', jsonHeaders, {
+        refreshToken: shedToken,
+      });
+      // The shed token was never consumed, so the retry now succeeds.
+      expect(retry.status).toBe(200);
+    });
+
+    it('does not shed load when overload simulation is disabled (default)', async () => {
+      mockBackend.configure({ latency: 0 }); // overload off by default
+
+      const tokens = await loginDevices(8);
+      const responses = await Promise.all(
+        tokens.map((refreshToken) =>
+          mockBackend.handleRequest('POST', '/auth/refresh', jsonHeaders, { refreshToken })
+        )
+      );
+
+      expect(responses.every((r) => r.status === 200)).toBe(true);
+      expect(mockBackend.getRefreshOverloadStats().rejectionCount).toBe(0);
+    });
+  });
 });

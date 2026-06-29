@@ -3,6 +3,7 @@ import {
   createAppError,
   ErrorType,
   mapStatusToErrorType,
+  parseRetryAfter,
 } from "../models/AppError";
 
 /**
@@ -325,6 +326,7 @@ export class ApiClient {
           response.status,
           { response: data },
           response.headers.get("x-request-id") || undefined,
+          parseRetryAfter(response.headers.get("retry-after")),
         );
 
         throw await this.applyErrorInterceptors(error);
