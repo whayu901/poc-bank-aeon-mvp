@@ -253,6 +253,97 @@ describe('MockBackend', () => {
     });
   });
 
+  describe('pagination + server-side filtering (GET /api/transactions)', () => {
+    const auth = new Headers({ Authorization: 'Bearer mock-valid-token' });
+
+    function params(obj: Record<string, string | number>): URLSearchParams {
+      const sp = new URLSearchParams();
+      Object.entries(obj).forEach(([k, v]) => sp.set(k, String(v)));
+      return sp;
+    }
+
+    it('returns a page with a nextCursor when more rows remain', async () => {
+      const res = await mockBackend.handleRequest(
+        'GET',
+        '/api/transactions',
+        auth,
+        undefined,
+        params({ limit: 20, cursor: 0 }),
+      );
+      const body = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(body.data).toHaveLength(20);
+      expect(body.nextCursor).toBe(20); // offset for the next page
+      expect(body.total).toBeGreaterThan(20);
+    });
+
+    it('walks every page and stops with nextCursor null at the end', async () => {
+      let cursor: number | null = 0;
+      let pages = 0;
+      const seen: string[] = [];
+
+      while (cursor !== null) {
+        const res = await mockBackend.handleRequest(
+          'GET',
+          '/api/transactions',
+          auth,
+          undefined,
+          params({ limit: 25, cursor }),
+        );
+        const body = await res.json();
+        seen.push(...body.data.map((t: any) => t.refId));
+        cursor = body.nextCursor;
+        pages++;
+      }
+
+      // All rows fetched exactly once, no duplicates, and it terminated.
+      const total = seen.length;
+      expect(pages).toBeGreaterThan(1);
+      expect(new Set(seen).size).toBe(total);
+    });
+
+    it('filters server-side by type before paginating', async () => {
+      const res = await mockBackend.handleRequest(
+        'GET',
+        '/api/transactions',
+        auth,
+        undefined,
+        params({ limit: 100, cursor: 0, type: 'incoming' }),
+      );
+      const body = await res.json();
+
+      expect(body.data.length).toBeGreaterThan(0);
+      expect(body.data.every((t: any) => t.amount >= 0)).toBe(true);
+    });
+
+    it('filters server-side by search query', async () => {
+      const res = await mockBackend.handleRequest(
+        'GET',
+        '/api/transactions',
+        auth,
+        undefined,
+        params({ limit: 100, cursor: 0, search: 'Netflix' }),
+      );
+      const body = await res.json();
+
+      expect(body.data.length).toBeGreaterThan(0);
+      expect(
+        body.data.every((t: any) => t.recipientName.includes('Netflix')),
+      ).toBe(true);
+    });
+
+    it('returns the full set when no limit is given (backward compatible)', async () => {
+      const res = await mockBackend.handleRequest('GET', '/api/transactions', auth);
+      const body = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(body.nextCursor).toBeNull();
+      expect(body.data.length).toBe(body.total);
+      expect(body.data.length).toBeGreaterThan(20);
+    });
+  });
+
   describe('thundering-herd overload (POST /auth/refresh)', () => {
     const jsonHeaders = new Headers({ 'Content-Type': 'application/json' });
 

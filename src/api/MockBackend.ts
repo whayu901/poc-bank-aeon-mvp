@@ -1,4 +1,95 @@
 import { Transaction } from "@/types/transaction";
+import {
+  getFilteredTransactions,
+  type TransactionDateRangeFilter,
+  type TransactionTypeFilter,
+} from "@/utils/transaction";
+
+/** Build a realistic-sized, deterministic transaction set so pagination is
+ *  actually visible in the app (the original fixtures were only 4 rows). */
+function seedTransactions(): Transaction[] {
+  const base: Transaction[] = [
+    {
+      refId: "TXN001",
+      amount: 2500.0,
+      transferDate: "2024-01-15T09:30:00.000Z",
+      recipientName: "Tech Corp Sdn Bhd",
+      transferName: "Salary Payment",
+      type: "incoming",
+      id: "TXN001",
+    },
+    {
+      refId: "TXN002",
+      amount: -150.0,
+      transferDate: "2024-01-14T20:15:00.000Z",
+      recipientName: "Grab",
+      transferName: "Airport to KLCC",
+      type: "outgoing",
+      id: "TXN002",
+    },
+    {
+      refId: "TXN003",
+      amount: -89.9,
+      transferDate: "2024-01-10T00:00:00.000Z",
+      recipientName: "Netflix",
+      transferName: "Monthly Subscription",
+      type: "outgoing",
+      id: "TXN003",
+    },
+    {
+      refId: "TXN004",
+      amount: 450.5,
+      transferDate: "2024-01-08T14:20:00.000Z",
+      recipientName: "Creative Studio",
+      transferName: "Freelance Project - Mobile App UI Design",
+      type: "incoming",
+      id: "TXN004",
+    },
+  ];
+
+  const merchants = [
+    "Shopee",
+    "Lazada",
+    "Grab",
+    "Touch 'n Go",
+    "Starbucks",
+    "AEON",
+    "Maxis",
+    "Tenaga Nasional",
+    "Spotify",
+    "Apple",
+  ];
+  const labels = [
+    "Online Purchase",
+    "Bill Payment",
+    "Food Delivery",
+    "Wallet Top Up",
+    "Subscription",
+    "Fund Transfer",
+  ];
+
+  // Deterministic (no Date.now/Math.random) so tests stay stable. Dates step
+  // back one day per item, starting just before the fixtures above.
+  const anchor = Date.parse("2024-01-07T12:00:00.000Z");
+  const generated: Transaction[] = [];
+  for (let i = 5; i <= 120; i++) {
+    const id = `TXN${String(i).padStart(3, "0")}`;
+    const isOutgoing = i % 2 === 0;
+    const magnitude = 10 + ((i * 37) % 990) + 0.5;
+    const amount = isOutgoing ? -magnitude : magnitude;
+    generated.push({
+      refId: id,
+      id,
+      amount,
+      transferDate: new Date(anchor - (i - 4) * 86_400_000).toISOString(),
+      recipientName: merchants[i % merchants.length],
+      transferName: labels[i % labels.length],
+      type: isOutgoing ? "outgoing" : "incoming",
+    });
+  }
+
+  return [...base, ...generated];
+}
 
 /**
  * Mock backend service for development and testing
@@ -27,45 +118,8 @@ export class MockBackend {
   private peakInflightRefreshCount = 0; // High-water mark (for demo/observability)
   private refreshRejectionCount = 0; // How many refreshes were shed with 429
 
-  // Mock data matching the Transaction type
-  private transactions: Transaction[] = [
-    {
-      refId: "TXN001",
-      amount: 2500.0,
-      transferDate: "2024-01-15T09:30:00.000Z",
-      recipientName: "Tech Corp Sdn Bhd",
-      transferName: "Salary Payment",
-      type: "incoming",
-      id: "TXN001",
-    },
-    {
-      refId: "TXN002",
-      amount: -150.0, // Negative for outgoing
-      transferDate: "2024-01-14T20:15:00.000Z",
-      recipientName: "Grab",
-      transferName: "Airport to KLCC",
-      type: "outgoing",
-      id: "TXN002",
-    },
-    {
-      refId: "TXN003",
-      amount: -89.9, // Negative for outgoing
-      transferDate: "2024-01-10T00:00:00.000Z",
-      recipientName: "Netflix",
-      transferName: "Monthly Subscription",
-      type: "outgoing",
-      id: "TXN003",
-    },
-    {
-      refId: "TXN004",
-      amount: 450.5,
-      transferDate: "2024-01-08T14:20:00.000Z",
-      recipientName: "Creative Studio",
-      transferName: "Freelance Project - Mobile App UI Design",
-      type: "incoming",
-      id: "TXN004",
-    },
-  ];
+  // Mock data matching the Transaction type (120 rows so paging is observable)
+  private transactions: Transaction[] = seedTransactions();
 
   private constructor() {
     // Initialize with a mock valid token for testing
@@ -186,6 +240,7 @@ export class MockBackend {
     endpoint: string,
     headers: Headers,
     body?: any,
+    query?: URLSearchParams,
   ): Promise<Response> {
     await this.simulateLatency();
 
@@ -206,7 +261,7 @@ export class MockBackend {
 
     // Route to appropriate handler
     if (endpoint === "/api/transactions" && method === "GET") {
-      return this.handleGetTransactions(headers);
+      return this.handleGetTransactions(headers, query);
     }
 
     if (endpoint.startsWith("/api/transactions/") && method === "GET") {
@@ -232,8 +287,15 @@ export class MockBackend {
 
   /**
    * Handle GET /api/transactions
+   *
+   * Supports server-side filtering + cursor (offset) pagination so the client
+   * can use an infinite query instead of loading everything at once:
+   *   ?search=&type=&dateRange=&limit=&cursor=
+   * Response: { data, nextCursor, total }. `nextCursor` is the offset to pass
+   * for the next page, or null when there are no more rows. When `limit` is
+   * omitted the full filtered set is returned (backward compatible).
    */
-  private handleGetTransactions(headers: Headers): Response {
+  private handleGetTransactions(headers: Headers, query?: URLSearchParams): Response {
     const authHeader = headers.get("Authorization");
 
     // Check authentication (optional for now, will be required in Phase 2)
@@ -250,7 +312,33 @@ export class MockBackend {
       );
     }
 
-    return new Response(JSON.stringify({ data: this.transactions }), {
+    // Filter + sort server-side (reuses the same logic the UI used to run
+    // client-side, so behavior is unchanged — just moved to the "backend").
+    const filtered = getFilteredTransactions({
+      transactions: this.transactions,
+      query: query?.get("search") ?? "",
+      type: (query?.get("type") as TransactionTypeFilter) ?? "all",
+      dateRange: (query?.get("dateRange") as TransactionDateRangeFilter) ?? "all",
+    });
+
+    const limitRaw = query?.get("limit");
+
+    // No limit → return everything (old all-at-once contract).
+    if (limitRaw == null) {
+      return this.json({ data: filtered, nextCursor: null, total: filtered.length });
+    }
+
+    const limit = Math.max(1, Number(limitRaw) || 20);
+    const cursor = Math.max(0, Number(query?.get("cursor")) || 0);
+    const page = filtered.slice(cursor, cursor + limit);
+    const nextCursor = cursor + limit < filtered.length ? cursor + limit : null;
+
+    return this.json({ data: page, nextCursor, total: filtered.length });
+  }
+
+  /** Small helper for a 200 JSON response with a request id. */
+  private json(body: unknown): Response {
+    return new Response(JSON.stringify(body), {
       status: 200,
       headers: {
         "Content-Type": "application/json",

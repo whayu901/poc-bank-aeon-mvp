@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo } from "react";
-import { FlatList, RefreshControl } from "react-native";
+import { ActivityIndicator, FlatList, RefreshControl, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { EmptyState } from "@/components/EmptyState";
@@ -29,12 +29,9 @@ export function TransactionListScreen(props: TransactionListScreenProps) {
 
   const renderTransaction = useCallback(
     ({ item }: { item: Transaction }) => (
-      <TransactionCard
-        transaction={item}
-        onPress={() => actions.openTransaction(item.refId)}
-      />
+      <TransactionCard transaction={item} onPress={actions.openTransaction} />
     ),
-    [actions],
+    [actions.openTransaction],
   );
 
   const header = (
@@ -113,6 +110,15 @@ export function TransactionListScreen(props: TransactionListScreenProps) {
           />
         }
         renderItem={renderTransaction}
+        onEndReached={actions.loadMore}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={
+          viewModel.isFetchingNextPage ? (
+            <View style={styles.footerLoader}>
+              <ActivityIndicator color={colors.primary} />
+            </View>
+          ) : null
+        }
         testID="transaction-list"
       />
     </SafeAreaView>

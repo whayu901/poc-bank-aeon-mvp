@@ -1,12 +1,11 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useLanguage, useSetLanguage } from '@/store/preferencesStore';
 import type { TransactionListScreenProps } from '@/types/navigation';
-import { getFilteredTransactions } from '@/utils/transaction';
 
 // React Query hooks for server state
 import {
-  useTransactions,
+  useInfiniteTransactions,
   useRefreshTransactions,
   usePrefetchTransaction
 } from '@/hooks/useTransactionQueries';
@@ -39,14 +38,46 @@ export function useTransactionListViewModel({
   const language = useLanguage();
   const setLanguage = useSetLanguage();
 
-  // Server State from React Query
+  // Debounce the search term so typing fires one paginated query after the
+  // user pauses, not one per keystroke. The input still reflects filters.search
+  // immediately (see `searchQuery` below) — only the network query is delayed.
+  const [debouncedSearch, setDebouncedSearch] = useState(filters.search);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(filters.search), 300);
+    return () => clearTimeout(timer);
+  }, [filters.search]);
+
+  // Server State from React Query — infinite/paginated list. Filtering is now
+  // done server-side, keyed by the (debounced) filter values.
+  const queryFilters = useMemo(
+    () => ({
+      search: debouncedSearch,
+      type: filters.type,
+      dateRange: filters.dateRange,
+    }),
+    [debouncedSearch, filters.type, filters.dateRange],
+  );
+
   const {
-    data: transactions = [],
+    data,
     isLoading,
     isError,
     error,
     refetch,
-  } = useTransactions();
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteTransactions(queryFilters);
+
+  // Flatten all loaded pages into a single list for the FlatList.
+  const transactions = useMemo(
+    () => data?.pages.flatMap((page) => page.data) ?? [],
+    [data],
+  );
+
+  // The server already filtered + sorted, so the "filtered" list is the list.
+  // (Kept as a separate name so the screen's API stays unchanged.)
+  const filteredTransactions = transactions;
 
   // Prefetching hook for performance
   const prefetchTransaction = usePrefetchTransaction();
@@ -54,17 +85,12 @@ export function useTransactionListViewModel({
   // Refresh handler
   const refreshTransactions = useRefreshTransactions();
 
-  // Apply filters to transactions (computed/derived state)
-  const filteredTransactions = useMemo(
-    () =>
-      getFilteredTransactions({
-        transactions,
-        query: filters.search,
-        type: filters.type,
-        dateRange: filters.dateRange,
-      }),
-    [filters.search, filters.type, filters.dateRange, transactions],
-  );
+  // Load the next page when the user scrolls near the bottom.
+  const loadMore = useCallback(() => {
+    if (hasNextPage && !isFetchingNextPage) {
+      void fetchNextPage();
+    }
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const hasActiveSearchOrFilters =
     filters.search.trim().length > 0 ||
@@ -114,6 +140,7 @@ export function useTransactionListViewModel({
       openTransaction,
       retryFetchTransactions,
       refreshTransactions: handleRefresh,
+      loadMore,
     }),
     [
       setLanguage,
@@ -123,6 +150,7 @@ export function useTransactionListViewModel({
       openTransaction,
       retryFetchTransactions,
       handleRefresh,
+      loadMore,
     ]
   );
 
@@ -132,6 +160,8 @@ export function useTransactionListViewModel({
       transactions,
       filteredTransactions,
       isLoading: isLoading || isRefreshing,
+      isFetchingNextPage,
+      hasNextPage: !!hasNextPage,
       error: isError ? error : null,
       language,
       searchQuery: filters.search,
@@ -145,6 +175,8 @@ export function useTransactionListViewModel({
       filteredTransactions,
       isLoading,
       isRefreshing,
+      isFetchingNextPage,
+      hasNextPage,
       isError,
       error,
       language,

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, Text, type TextStyle } from 'react-native';
 
 import { useTranslation } from '@/i18n';
@@ -12,15 +12,16 @@ interface AmountTextProps {
   testID?: string;
 }
 
-export function AmountText({ amount, size = 'regular', style, testID }: AmountTextProps) {
+function AmountTextComponent({ amount, size = 'regular', style, testID }: AmountTextProps) {
   const isOutgoing = amount < 0;
   const { colors } = useAppTheme();
   const { t } = useTranslation();
-  const styles = createStyles(colors);
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const formatted = useMemo(() => formatCurrency(amount), [amount]);
 
   return (
     <Text
-      accessibilityLabel={`${t.common.amount} ${formatCurrency(amount)}`}
+      accessibilityLabel={`${t.common.amount} ${formatted}`}
       testID={testID}
       style={[
         styles.amount,
@@ -28,10 +29,12 @@ export function AmountText({ amount, size = 'regular', style, testID }: AmountTe
         isOutgoing ? styles.outgoing : styles.incoming,
         style,
       ]}>
-      {formatCurrency(amount)}
+      {formatted}
     </Text>
   );
 }
+
+export const AmountText = React.memo(AmountTextComponent);
 
 const createStyles = (colors: ReturnType<typeof useAppTheme>['colors']) =>
   StyleSheet.create({

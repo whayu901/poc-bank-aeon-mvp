@@ -132,6 +132,10 @@ export const queryKeys = {
     lists: () => ['api', 'transactions', 'list'] as const,
     list: (filters?: Record<string, any>) =>
       ['api', 'transactions', 'list', filters] as const,
+    // Infinite (paginated) list — one cache entry per filter combination.
+    // Kept under `transactions.all` so refresh/invalidation still covers it.
+    infinite: (filters?: Record<string, any>) =>
+      ['api', 'transactions', 'infinite', filters] as const,
     details: () => ['api', 'transactions', 'detail'] as const,
     detail: (id: string) => ['api', 'transactions', 'detail', id] as const,
   },

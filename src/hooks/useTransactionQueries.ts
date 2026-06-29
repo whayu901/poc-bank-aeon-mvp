@@ -1,8 +1,21 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ApiTransactionRepository } from '@/repositories/ApiTransactionRepository';
+import {
+  useQuery,
+  useInfiniteQuery,
+  useMutation,
+  useQueryClient,
+} from '@tanstack/react-query';
+import {
+  ApiTransactionRepository,
+  type TransactionPageFilters,
+} from '@/repositories/ApiTransactionRepository';
 import { Transaction } from '@/types/transaction';
 import { queryKeys, invalidateQueries, prefetchQueries } from '@/lib/queryClient';
 import { TokenManager } from '@/services/TokenManager';
+
+/** How many rows to request per page. The backend can serve far more at once,
+ *  but we deliberately fetch a screenful-plus so memory stays bounded and the
+ *  first paint is fast regardless of how many months of history exist. */
+export const TRANSACTIONS_PAGE_SIZE = 20;
 
 /**
  * Transaction query hooks using TanStack Query
@@ -58,6 +71,44 @@ export function useTransactions(filters?: {
     refetchIntervalInBackground: false, // Don't refetch when tab is hidden
 
     // Keep previous data while fetching
+    placeholderData: (previousData) => previousData,
+  });
+}
+
+/**
+ * Hook to fetch transactions as an INFINITE (paginated) list.
+ *
+ * This is the screen's primary data source. Instead of loading every
+ * transaction up front, it pulls one page at a time and appends more as the
+ * user scrolls (via `fetchNextPage`). Filtering happens server-side, and each
+ * filter combination gets its own cache entry — change the search/type/date
+ * and TanStack Query tracks a separate paginated list, with the previous one
+ * still warm in cache if the user switches back.
+ *
+ * Returned shape (TanStack infinite query):
+ * - data.pages: Array<{ data: Transaction[]; nextCursor }>
+ * - fetchNextPage(), hasNextPage, isFetchingNextPage
+ */
+export function useInfiniteTransactions(filters?: TransactionPageFilters) {
+  return useInfiniteQuery({
+    queryKey: queryKeys.transactions.infinite(filters),
+    queryFn: ({ pageParam }) => {
+      // TokenManager still wraps every page fetch, so the refresh/401 handling
+      // (and the thundering-herd defenses) apply to pagination too.
+      return tokenManager.makeAuthenticatedRequest(() =>
+        repository.getTransactionsPage({
+          cursor: pageParam,
+          limit: TRANSACTIONS_PAGE_SIZE,
+          filters,
+        }),
+      );
+    },
+    initialPageParam: 0,
+    // Returning undefined tells TanStack there are no more pages → hasNextPage=false.
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
+    // Keep showing the current list while a new filter's first page loads.
     placeholderData: (previousData) => previousData,
   });
 }

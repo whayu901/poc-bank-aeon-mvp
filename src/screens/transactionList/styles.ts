@@ -17,6 +17,9 @@ export const createTransactionListStyles = (
       gap: spacing.lg,
       paddingBottom: spacing.xl,
     },
+    footerLoader: {
+      paddingVertical: spacing.lg,
+    },
     header: {
       gap: spacing.sm,
       paddingBottom: spacing.sm,

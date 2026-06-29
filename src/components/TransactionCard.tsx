@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AmountText } from '@/components/AmountText';
@@ -11,20 +11,24 @@ import { getTransactionType } from '@/utils/transaction';
 
 interface TransactionCardProps {
   transaction: Transaction;
-  onPress: () => void;
+  // Receives the row's refId so the parent can pass ONE stable callback for the
+  // whole list instead of a fresh per-row closure — which is what lets React.memo
+  // actually skip unchanged rows.
+  onPress: (refId: string) => void;
 }
 
-export function TransactionCard({ transaction, onPress }: TransactionCardProps) {
+function TransactionCardComponent({ transaction, onPress }: TransactionCardProps) {
   const transactionType = getTransactionType(transaction.amount);
   const { colors, spacing } = useAppTheme();
   const { t } = useTranslation();
-  const styles = createStyles(colors, spacing);
+  // Rebuild styles only when the theme actually changes, not on every render.
+  const styles = useMemo(() => createStyles(colors, spacing), [colors, spacing]);
 
   return (
     <Pressable
       accessibilityLabel={`${transaction.transferName} to ${transaction.recipientName}, ${transaction.refId}`}
       accessibilityRole="button"
-      onPress={onPress}
+      onPress={() => onPress(transaction.refId)}
       testID={`transaction-card-${transaction.refId}`}
       style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}>
       <View style={styles.header}>
@@ -44,6 +48,22 @@ export function TransactionCard({ transaction, onPress }: TransactionCardProps) 
     </Pressable>
   );
 }
+
+/**
+ * Memoized so an unchanged row never re-renders when the list re-renders
+ * (search keystroke, background refetch, pull-to-refresh). `onPress` must be
+ * stable from the parent (it is — wrapped in useCallback in the list screen).
+ */
+export const TransactionCard = React.memo(
+  TransactionCardComponent,
+  (prev, next) =>
+    prev.onPress === next.onPress &&
+    prev.transaction.refId === next.transaction.refId &&
+    prev.transaction.amount === next.transaction.amount &&
+    prev.transaction.transferDate === next.transaction.transferDate &&
+    prev.transaction.transferName === next.transaction.transferName &&
+    prev.transaction.recipientName === next.transaction.recipientName,
+);
 
 const createStyles = (
   colors: ReturnType<typeof useAppTheme>['colors'],

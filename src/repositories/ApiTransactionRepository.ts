@@ -2,7 +2,24 @@ import { ApiClient } from "@/api/ApiClient";
 import { MockBackend } from "@/api/MockBackend";
 import { isAppError } from "@/models/AppError";
 import { Transaction } from "@/types/transaction";
+import type {
+  TransactionDateRangeFilter,
+  TransactionTypeFilter,
+} from "@/utils/transaction";
 import { TransactionRepository } from "./TransactionRepository";
+
+/** Filters the backend understands for a paginated transactions query. */
+export interface TransactionPageFilters {
+  search?: string;
+  type?: TransactionTypeFilter;
+  dateRange?: TransactionDateRangeFilter;
+}
+
+/** One page of transactions plus the cursor for the next page (null = end). */
+export interface TransactionPage {
+  data: Transaction[];
+  nextCursor: number | null;
+}
 
 /**
  * Production-ready transaction repository using the API client
@@ -59,7 +76,13 @@ export class ApiTransactionRepository implements TransactionRepository {
           }
         }
 
-        return this.mockBackend.handleRequest(method, endpoint, headers, body);
+        return this.mockBackend.handleRequest(
+          method,
+          endpoint,
+          headers,
+          body,
+          urlObj.searchParams,
+        );
       }
 
       // Pass through other requests
@@ -93,6 +116,48 @@ export class ApiTransactionRepository implements TransactionRepository {
 
       // Unexpected error
       console.error("[ApiTransactionRepository] Unexpected error:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Fetch a single page of transactions with server-side filtering.
+   * `cursor` is the row offset to start from; the backend returns the next
+   * cursor (or null when there are no more rows).
+   */
+  async getTransactionsPage(options: {
+    cursor: number;
+    limit: number;
+    filters?: TransactionPageFilters;
+  }): Promise<TransactionPage> {
+    const { cursor, limit, filters } = options;
+
+    const params: Record<string, string | number> = { cursor, limit };
+    if (filters?.search) params.search = filters.search;
+    if (filters?.type && filters.type !== "all") params.type = filters.type;
+    if (filters?.dateRange && filters.dateRange !== "all") {
+      params.dateRange = filters.dateRange;
+    }
+
+    try {
+      const response = await this.apiClient.get<{
+        data: Transaction[];
+        nextCursor: number | null;
+      }>("/api/transactions", { params });
+
+      return {
+        data: response.data.data,
+        nextCursor: response.data.nextCursor,
+      };
+    } catch (error) {
+      if (isAppError(error)) {
+        console.error(`[ApiTransactionRepository] Error fetching page:`, {
+          type: error.type,
+          message: error.message,
+          statusCode: error.statusCode,
+          requestId: error.requestId,
+        });
+      }
       throw error;
     }
   }
