@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, Text, View } from 'react-native';
 
+import { BatteryIndicator } from '@/components/BatteryIndicator';
 import { useTranslation } from '@/i18n';
 import type { Language } from '@/store/preferencesStore';
 import type { TransactionListStyles } from '@/screens/transactionList/styles';
@@ -48,7 +49,10 @@ export function TransactionListHeader({
           })}
         </View>
       </View>
-      <Text style={styles.subtitle}>{t.list.subtitle}</Text>
+      <View style={styles.headerMeta}>
+        <Text style={styles.subtitle}>{t.list.subtitle}</Text>
+        <BatteryIndicator />
+      </View>
     </View>
   );
 }

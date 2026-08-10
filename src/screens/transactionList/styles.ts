@@ -36,9 +36,16 @@ export const createTransactionListStyles = (
       ...typography.title,
       flex: 1,
     },
+    headerMeta: {
+      alignItems: 'center',
+      flexDirection: 'row',
+      gap: spacing.md,
+      justifyContent: 'space-between',
+    },
     subtitle: {
       color: colors.textSecondary,
       ...typography.subtitle,
+      flex: 1,
     },
     searchPanel: {
       gap: spacing.md,

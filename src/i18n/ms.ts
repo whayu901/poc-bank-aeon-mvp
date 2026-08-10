@@ -13,6 +13,11 @@ export const ms = {
     bahasaMalaysia: 'BM',
     toggleLabel: 'Pilih bahasa',
   },
+  battery: {
+    label: 'Bateri peranti',
+    unavailable: 'Paras bateri tidak tersedia',
+    charging: 'sedang mengecas',
+  },
   list: {
     accessibilityLabel: 'Transaksi terkini',
     title: 'Transaksi Terkini',

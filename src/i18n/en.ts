@@ -13,6 +13,11 @@ export const en = {
     bahasaMalaysia: 'BM',
     toggleLabel: 'Select language',
   },
+  battery: {
+    label: 'Device battery',
+    unavailable: 'Battery level unavailable',
+    charging: 'charging',
+  },
   list: {
     accessibilityLabel: 'Latest transactions',
     title: 'Latest Transactions',
